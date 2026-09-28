@@ -4,14 +4,16 @@ import { Login } from './components/Login';
 import { CaseList } from './components/CaseList';
 import { CaseDetail } from './components/CaseDetail';
 import { CreateCaseModal } from './components/CreateCaseModal';
+import { ReportingView } from './components/ReportingView';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { DEMO_CASES, DEMO_AGENTS } from './data/mockData';
 import type { Case, Agent } from './types/database';
-import { Plus } from 'lucide-react';
+import { Plus, Inbox, BarChart3 } from 'lucide-react';
 
 const MainView: React.FC = () => {
   const { session, agent, loading: authLoading, signOut } = useAuth();
 
+  const [activeTab, setActiveTab] = useState<'cases' | 'reporting'>('cases');
   const [cases, setCases] = useState<Case[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null);
   const [loadingCases, setLoadingCases] = useState<boolean>(true);
@@ -172,9 +174,80 @@ const MainView: React.FC = () => {
               fontWeight: 500,
             }}
           >
-            v0.2.0
+            v0.3.0
           </span>
         </div>
+
+        {/* View Switcher Tabs */}
+        <nav
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'var(--bg-subtle)',
+            padding: '2px 4px',
+            borderRadius: '6px',
+            border: '0.5px solid var(--border-color)',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab('cases')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              fontSize: '12px',
+              fontWeight: activeTab === 'cases' ? 600 : 500,
+              background: activeTab === 'cases' ? 'var(--bg-surface)' : 'transparent',
+              color: activeTab === 'cases' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              border: activeTab === 'cases' ? '0.5px solid var(--border-color)' : 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'cases' ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Inbox size={13} />
+            <span>Dossiers</span>
+            <span
+              style={{
+                fontSize: '10px',
+                padding: '1px 5px',
+                borderRadius: '8px',
+                background: activeTab === 'cases' ? 'var(--teal-surface)' : 'rgba(0,0,0,0.05)',
+                color: activeTab === 'cases' ? 'var(--teal-primary)' : 'var(--text-muted)',
+                fontWeight: 600,
+              }}
+            >
+              {cases.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('reporting')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              fontSize: '12px',
+              fontWeight: activeTab === 'reporting' ? 600 : 500,
+              background: activeTab === 'reporting' ? 'var(--bg-surface)' : 'transparent',
+              color: activeTab === 'reporting' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              border: activeTab === 'reporting' ? '0.5px solid var(--border-color)' : 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              boxShadow: activeTab === 'reporting' ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <BarChart3 size={13} />
+            <span>Rapports & KPI</span>
+          </button>
+        </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -212,25 +285,31 @@ const MainView: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Split View: Left List (~340px) & Right Read-Only Detail */}
-      <main style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <CaseList
-          cases={cases}
-          selectedCaseId={selectedCaseId}
-          onSelectCase={(c) => setSelectedCaseId(c.id)}
-          loading={loadingCases}
-          error={caseError}
-          onRetry={fetchCasesAndAgents}
-          onCreateCase={() => setIsCreateModalOpen(true)}
-        />
+      {/* Main View: Cases Split View or Reporting */}
+      {activeTab === 'cases' ? (
+        <main style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <CaseList
+            cases={cases}
+            selectedCaseId={selectedCaseId}
+            onSelectCase={(c) => setSelectedCaseId(c.id)}
+            loading={loadingCases}
+            error={caseError}
+            onRetry={fetchCasesAndAgents}
+            onCreateCase={() => setIsCreateModalOpen(true)}
+          />
 
-        <CaseDetail
-          selectedCase={selectedCase}
-          agentsMap={agentsMap}
-          currentAgent={agent}
-          onCaseUpdated={handleCaseUpdated}
-        />
-      </main>
+          <CaseDetail
+            selectedCase={selectedCase}
+            agentsMap={agentsMap}
+            currentAgent={agent}
+            onCaseUpdated={handleCaseUpdated}
+          />
+        </main>
+      ) : (
+        <main style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <ReportingView />
+        </main>
+      )}
 
       {/* Create Case Modal */}
       <CreateCaseModal

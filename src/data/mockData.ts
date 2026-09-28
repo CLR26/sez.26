@@ -1,4 +1,4 @@
-import type { Case, CaseEvent, Agent } from '../types/database';
+import type { Case, CaseEvent, Agent, KpiCase } from '../types/database';
 
 export const DEMO_AGENTS: Agent[] = [
   {
@@ -200,3 +200,69 @@ export const DEMO_EVENTS: Record<number, CaseEvent[]> = {
     },
   ],
 };
+
+export const DEMO_KPI_CASES: KpiCase[] = [
+  {
+    category: 'customs',
+    channel: 'whatsapp',
+    resolved_count: 5,
+    open_count: 2,
+    avg_resolution_time: '04:15:00',
+  },
+  {
+    category: 'customs',
+    channel: 'email',
+    resolved_count: 8,
+    open_count: 3,
+    avg_resolution_time: '06:40:00',
+  },
+  {
+    category: 'delivery',
+    channel: 'whatsapp',
+    resolved_count: 12,
+    open_count: 4,
+    avg_resolution_time: '02:30:00',
+  },
+  {
+    category: 'delivery',
+    channel: 'email',
+    resolved_count: 7,
+    open_count: 2,
+    avg_resolution_time: '05:10:00',
+  },
+  {
+    category: 'billing',
+    channel: 'whatsapp',
+    resolved_count: 3,
+    open_count: 1,
+    avg_resolution_time: '01:45:00',
+  },
+  {
+    category: 'billing',
+    channel: 'email',
+    resolved_count: 9,
+    open_count: 2,
+    avg_resolution_time: '03:50:00',
+  },
+  {
+    category: 'account',
+    channel: 'whatsapp',
+    resolved_count: 6,
+    open_count: 0,
+    avg_resolution_time: '00:55:00',
+  },
+  {
+    category: 'account',
+    channel: 'email',
+    resolved_count: 4,
+    open_count: 1,
+    avg_resolution_time: '02:15:00',
+  },
+  {
+    category: 'other',
+    channel: 'email',
+    resolved_count: 2,
+    open_count: 1,
+    avg_resolution_time: '03:00:00',
+  },
+];
