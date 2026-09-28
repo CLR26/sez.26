@@ -254,7 +254,7 @@ export const ReportingView: React.FC = () => {
             </div>
           </div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {loading ? '—' : totalOpen}
+            {loading ? <div className="skeleton" style={{ width: '50px', height: '30px' }} /> : totalOpen}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             En attente ou en cours de traitement
@@ -291,10 +291,14 @@ export const ReportingView: React.FC = () => {
             </div>
           </div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {loading ? '—' : resolved30dCount ?? totalResolved}
+            {loading ? (
+              <div className="skeleton" style={{ width: '50px', height: '30px' }} />
+            ) : (
+              resolved30dCount ?? totalResolved
+            )}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Total historique : {loading ? '—' : totalResolved} résolus
+            Total historique : {loading ? '...' : totalResolved} résolus
           </div>
         </div>
 
@@ -329,7 +333,7 @@ export const ReportingView: React.FC = () => {
           </div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: 'var(--text-primary)' }}>
             {loading ? (
-              '—'
+              <div className="skeleton" style={{ width: '90px', height: '30px' }} />
             ) : (
               formatInterval(
                 kpis.find((k) => k.avg_resolution_time)?.avg_resolution_time || '03:45:00'
@@ -371,10 +375,10 @@ export const ReportingView: React.FC = () => {
             </div>
           </div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {loading ? '—' : `${resolutionRate}%`}
+            {loading ? <div className="skeleton" style={{ width: '60px', height: '30px' }} /> : `${resolutionRate}%`}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {totalResolved} sur {totalCases} dossiers au total
+            {loading ? 'Calcul en cours...' : `${totalResolved} sur ${totalCases} dossiers au total`}
           </div>
         </div>
       </div>
@@ -563,10 +567,54 @@ export const ReportingView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredKpis.length === 0 ? (
+              {loading ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} style={{ borderBottom: '0.5px solid var(--border-color)' }}>
+                    <td style={{ padding: '12px' }}>
+                      <div className="skeleton" style={{ width: i % 2 === 0 ? '110px' : '90px', height: '14px' }} />
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      <div className="skeleton" style={{ width: '70px', height: '18px', borderRadius: '10px' }} />
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>
+                      <div className="skeleton" style={{ width: '28px', height: '14px', marginLeft: 'auto' }} />
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>
+                      <div className="skeleton" style={{ width: '28px', height: '14px', marginLeft: 'auto' }} />
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>
+                      <div className="skeleton" style={{ width: '65px', height: '14px', marginLeft: 'auto' }} />
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      <div className="skeleton" style={{ width: '100%', height: '8px', borderRadius: '4px' }} />
+                    </td>
+                  </tr>
+                ))
+              ) : filteredKpis.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '32px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Aucune donnée KPI disponible pour ce filtre.
+                  <td colSpan={6} style={{ padding: '40px 16px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          background: 'var(--bg-subtle)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        <Inbox size={20} />
+                      </div>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px' }}>
+                        Aucune statistique pour ce filtre
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        Sélectionnez « Tous les canaux » ou actualisez les données.
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ) : (

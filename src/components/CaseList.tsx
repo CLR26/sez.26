@@ -200,46 +200,154 @@ export const CaseList: React.FC<CaseListProps> = ({
 
       {/* Case List Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {/* Loading state */}
+        {/* Loading state: skeleton cards */}
         {loading && cases.length === 0 && (
-          <div className="state-container" style={{ padding: '32px 16px' }}>
-            <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--teal-primary)' }} />
-            <span>Chargement des dossiers...</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '12px 14px',
+                  borderBottom: '0.5px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <div className="skeleton" style={{ width: '38px', height: '14px' }} />
+                    <div className="skeleton" style={{ width: '65px', height: '14px', borderRadius: '10px' }} />
+                  </div>
+                  <div className="skeleton" style={{ width: '45px', height: '12px' }} />
+                </div>
+                <div className="skeleton" style={{ width: i % 2 === 0 ? '80%' : '92%', height: '14px' }} />
+                <div className="skeleton" style={{ width: '50%', height: '12px' }} />
+                <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                  <div className="skeleton" style={{ width: '55px', height: '16px', borderRadius: '10px' }} />
+                  <div className="skeleton" style={{ width: '70px', height: '16px', borderRadius: '10px' }} />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         {/* Error state */}
         {error && cases.length === 0 && (
-          <div className="state-container" style={{ padding: '24px 16px', textAlign: 'center' }}>
-            <AlertCircle size={28} style={{ color: '#dc2626' }} />
-            <div style={{ fontWeight: 500, color: 'var(--text-primary)', marginTop: '4px' }}>
-              Erreur de chargement
+          <div style={{ padding: '36px 18px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: '#fef2f2',
+                border: '0.5px solid #fecaca',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#dc2626',
+                marginBottom: '10px',
+              }}
+            >
+              <AlertCircle size={22} />
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '240px', lineHeight: 1.4 }}>
+            <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+              Échec du chargement
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '240px', lineHeight: 1.45, marginBottom: '14px' }}>
               {error}
             </p>
             <button
               onClick={onRetry}
               className="btn-primary"
-              style={{ fontSize: '12px', padding: '6px 14px', marginTop: '8px' }}
+              style={{
+                marginTop: 0,
+                fontSize: '12px',
+                padding: '6px 16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
             >
-              Réessayer
+              <RefreshCw size={12} />
+              <span>Réessayer</span>
             </button>
           </div>
         )}
 
         {/* Empty state */}
         {!loading && !error && filteredCases.length === 0 && (
-          <div className="state-container" style={{ padding: '36px 16px', textAlign: 'center' }}>
-            <Inbox size={28} style={{ color: 'var(--text-muted)' }} />
-            <div style={{ fontWeight: 500, color: 'var(--text-primary)', marginTop: '4px' }}>
-              {searchQuery || statusFilter !== 'all' ? 'Aucun résultat' : 'Aucun dossier'}
+          <div
+            style={{
+              padding: '40px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              gap: '10px',
+            }}
+          >
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'var(--bg-subtle)',
+                border: '0.5px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)',
+              }}
+            >
+              {searchQuery || statusFilter !== 'all' ? <Search size={20} /> : <Inbox size={20} />}
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '220px', lineHeight: 1.4 }}>
+            <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
+              {searchQuery || statusFilter !== 'all' ? 'Aucun résultat correspondant' : 'Aucun dossier actif'}
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '240px', lineHeight: 1.45, margin: 0 }}>
               {searchQuery || statusFilter !== 'all'
-                ? 'Essayez de modifier vos critères de recherche ou de filtre.'
-                : 'La table Supabase ne contient aucun dossier pour le moment.'}
+                ? `Aucun dossier ne correspond à votre filtre actuel.`
+                : 'La file est actuellement vide. Vous pouvez créer un nouveau dossier pour consigner une demande.'}
             </p>
+
+            {searchQuery || statusFilter !== 'all' ? (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                }}
+                style={{
+                  marginTop: '6px',
+                  background: 'none',
+                  border: '0.5px solid var(--border-color)',
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  color: 'var(--teal-primary)',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Réinitialiser les filtres
+              </button>
+            ) : onCreateCase ? (
+              <button
+                onClick={onCreateCase}
+                className="btn-primary"
+                style={{
+                  marginTop: '6px',
+                  padding: '6px 14px',
+                  fontSize: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Plus size={13} />
+                <span>Créer un dossier</span>
+              </button>
+            ) : null}
           </div>
         )}
 

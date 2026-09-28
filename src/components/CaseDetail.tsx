@@ -284,33 +284,49 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
       >
         <div
           style={{
-            maxWidth: '360px',
+            maxWidth: '380px',
             textAlign: 'center',
             color: 'var(--text-secondary)',
+            background: 'var(--bg-surface)',
+            border: '1px dashed var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: '36px 28px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
           }}
         >
           <div
             style={{
-              width: '48px',
-              height: '48px',
+              width: '52px',
+              height: '52px',
               borderRadius: '50%',
-              background: 'var(--bg-subtle)',
-              border: '0.5px solid var(--border-color)',
+              background: 'var(--teal-surface)',
+              border: '0.5px solid rgba(8,80,65,0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px auto',
+              color: 'var(--teal-primary)',
+            }}
+          >
+            <FileText size={24} />
+          </div>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+            Sélectionnez un dossier
+          </h3>
+          <p style={{ fontSize: '13px', lineHeight: 1.5, color: 'var(--text-secondary)', margin: 0 }}>
+            Choisissez un dossier dans la colonne de gauche pour consulter son récapitulatif, modifier son statut ou ajouter une note dans son journal.
+          </p>
+          <div
+            style={{
+              marginTop: '16px',
+              paddingTop: '16px',
+              borderTop: '0.5px solid var(--border-color)',
+              fontSize: '11px',
               color: 'var(--text-muted)',
             }}
           >
-            <FileText size={22} />
+            Astuce : utilisez la barre de recherche ou les filtres de statut pour naviguer rapidement.
           </div>
-          <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
-            Aucun dossier sélectionné
-          </h3>
-          <p style={{ fontSize: '13px', lineHeight: 1.5 }}>
-            Sélectionnez un dossier dans la liste à gauche pour consulter ses informations détaillées et son journal d'événements.
-          </p>
         </div>
       </section>
     );
@@ -800,11 +816,55 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           </div>
         </form>
 
-        {/* Loading Events */}
+        {/* Loading Events: Timeline Skeletons */}
         {loadingEvents && (
-          <div className="state-container" style={{ padding: '36px 0' }}>
-            <RefreshCw size={18} className="animate-spin" style={{ color: 'var(--teal-primary)' }} />
-            <span>Chargement des événements...</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingLeft: '22px', position: 'relative' }}>
+            <div
+              style={{
+                position: 'absolute',
+                left: '7px',
+                top: '12px',
+                bottom: '16px',
+                width: '2px',
+                backgroundColor: 'var(--border-color)',
+              }}
+            />
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'relative',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-app)',
+                  border: '0.5px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '-22px',
+                    top: '14px',
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: '#e2e8f0',
+                    border: '2px solid var(--bg-surface)',
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div className="skeleton" style={{ width: '80px', height: '16px', borderRadius: '10px' }} />
+                    <div className="skeleton" style={{ width: '70px', height: '14px' }} />
+                  </div>
+                  <div className="skeleton" style={{ width: '90px', height: '12px' }} />
+                </div>
+                <div className="skeleton" style={{ width: i === 1 ? '90%' : i === 2 ? '75%' : '60%', height: '13px' }} />
+              </div>
+            ))}
           </div>
         )}
 
@@ -847,13 +907,39 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
 
         {/* Empty Events */}
         {!loadingEvents && events.length === 0 && (
-          <div className="state-container" style={{ padding: '40px 0', textAlign: 'center' }}>
-            <Inbox size={26} style={{ color: 'var(--text-muted)' }} />
-            <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-              Aucun événement consigné
+          <div
+            style={{
+              padding: '36px 20px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              background: 'var(--bg-app)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px dashed var(--border-color)',
+            }}
+          >
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'var(--bg-subtle)',
+                border: '0.5px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)',
+                marginBottom: '10px',
+              }}
+            >
+              <FileText size={20} />
+            </div>
+            <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+              Historique vierge
             </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Utilisez le formulaire ci-dessus pour consigner la première note de ce dossier.
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '320px', lineHeight: 1.45 }}>
+              Aucun événement ou échange n'a encore été consigné pour ce dossier. Rédigez une première note ci-dessus pour démarrer le suivi.
             </span>
           </div>
         )}

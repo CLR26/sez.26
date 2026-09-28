@@ -8,7 +8,7 @@ import { ReportingView } from './components/ReportingView';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { DEMO_CASES, DEMO_AGENTS } from './data/mockData';
 import type { Case, Agent } from './types/database';
-import { Plus, Inbox, BarChart3 } from 'lucide-react';
+import { Plus, Inbox, BarChart3, Loader2 } from 'lucide-react';
 
 const MainView: React.FC = () => {
   const { session, agent, loading: authLoading, signOut } = useAuth();
@@ -125,8 +125,35 @@ const MainView: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="state-container" style={{ height: '100vh' }}>
-        Chargement de la session...
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          background: 'var(--bg-app)',
+          gap: '14px',
+        }}
+      >
+        <div
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'var(--teal-surface)',
+            border: '0.5px solid rgba(8,80,65,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--teal-primary)',
+          }}
+        >
+          <Loader2 size={22} className="animate-spin" />
+        </div>
+        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+          Chargement de votre session...
+        </div>
       </div>
     );
   }
