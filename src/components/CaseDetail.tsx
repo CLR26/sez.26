@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import type { Case, CaseEvent, Agent } from '../types/database';
+import type { Case, CaseEvent, Agent, CaseStatus } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DEMO_EVENTS } from '../data/mockData';
+import { EscalateModal } from './EscalateModal';
 import {
   STATUS_LABELS,
   CHANNEL_LABELS,
@@ -26,17 +27,31 @@ import {
   AlertCircle,
   Inbox,
   ArrowUpRight,
+  ChevronDown,
+  Loader2,
 } from 'lucide-react';
 
 interface CaseDetailProps {
   selectedCase: Case | null;
   agentsMap: Record<string, Agent>;
+  currentAgent: Agent;
+  onCaseUpdated: (updatedCase: Case) => void;
 }
 
-export const CaseDetail: React.FC<CaseDetailProps> = ({ selectedCase, agentsMap }) => {
+export const CaseDetail: React.FC<CaseDetailProps> = ({
+  selectedCase,
+  agentsMap,
+  currentAgent,
+  onCaseUpdated,
+}) => {
   const [events, setEvents] = useState<CaseEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState<boolean>(false);
   const [eventError, setEventError] = useState<string | null>(null);
+
+  // Status update state
+  const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusActionError, setStatusActionError] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async (caseId: number) => {
     setLoadingEvents(true);
@@ -79,11 +94,104 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ selectedCase, agentsMap 
   useEffect(() => {
     if (selectedCase) {
       fetchEvents(selectedCase.id);
+      setStatusActionError(null);
     } else {
       setEvents([]);
       setEventError(null);
+      setStatusActionError(null);
     }
   }, [selectedCase, fetchEvents]);
+
+  const handleStatusChangeRequest = async (targetStatus: CaseStatus) => {
+    if (!selectedCase || targetStatus === selectedCase.status) return;
+
+    // Requirement: Selecting Escalated requires choosing a team
+    if (targetStatus === 'escalated') {
+      setIsEscalateModalOpen(true);
+      return;
+    }
+
+    // Direct status update for 'new', 'in_progress', 'resolved'
+    setUpdatingStatus(true);
+    setStatusActionError(null);
+
+    const nowIso = new Date().toISOString();
+    const isResolved = targetStatus === 'resolved';
+
+    if (!isSupabaseConfigured) {
+      const updatedMock: Case = {
+        ...selectedCase,
+        status: targetStatus,
+        resolved_at: isResolved ? nowIso : null,
+      };
+
+      const newMockEvent: CaseEvent = {
+        id: Math.floor(2000 + Math.random() * 8000),
+        case_id: selectedCase.id,
+        author_id: currentAgent.id,
+        kind: 'status_change',
+        channel: null,
+        body: `Statut passé de "${STATUS_LABELS[selectedCase.status]}" à "${STATUS_LABELS[targetStatus]}".`,
+        created_at: nowIso,
+      };
+
+      if (!DEMO_EVENTS[selectedCase.id]) {
+        DEMO_EVENTS[selectedCase.id] = [];
+      }
+      DEMO_EVENTS[selectedCase.id].push(newMockEvent);
+
+      setTimeout(() => {
+        setUpdatingStatus(false);
+        onCaseUpdated(updatedMock);
+        setEvents((prev) => [...prev, newMockEvent]);
+      }, 150);
+      return;
+    }
+
+    try {
+      // 1. Update cases table
+      const { data: updatedData, error: updateError } = await supabase
+        .from('cases')
+        .update({
+          status: targetStatus,
+          resolved_at: isResolved ? nowIso : null,
+        })
+        .eq('id', selectedCase.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // 2. Insert event in case_events
+      const eventText = `Statut passé de "${STATUS_LABELS[selectedCase.status]}" à "${STATUS_LABELS[targetStatus]}".`;
+      await supabase.from('case_events').insert([
+        {
+          case_id: selectedCase.id,
+          author_id: currentAgent.id,
+          kind: 'status_change',
+          channel: null,
+          body: eventText,
+        },
+      ]);
+
+      onCaseUpdated(updatedData as Case);
+      fetchEvents(selectedCase.id);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du statut';
+      setStatusActionError(message);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleEscalationComplete = (updatedCase: Case) => {
+    onCaseUpdated(updatedCase);
+    if (selectedCase) {
+      fetchEvents(selectedCase.id);
+    }
+  };
 
   if (!selectedCase) {
     return (
@@ -194,27 +302,101 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ selectedCase, agentsMap 
               <Tag size={10} style={{ marginRight: '2px' }} />
               {CATEGORY_LABELS[selectedCase.category] || selectedCase.category}
             </span>
+
+            {selectedCase.assigned_team && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: 'var(--teal-primary)',
+                  background: 'var(--teal-surface)',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '0.5px solid rgba(8,80,65,0.2)',
+                }}
+              >
+                <Users size={11} />
+                <span>{TEAM_LABELS[selectedCase.assigned_team] || selectedCase.assigned_team}</span>
+              </div>
+            )}
           </div>
 
-          {selectedCase.assigned_team && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 500,
-                color: 'var(--teal-primary)',
-                background: 'var(--teal-surface)',
-                padding: '3px 9px',
-                borderRadius: 'var(--radius-sm)',
-              }}
-            >
-              <Users size={12} />
-              <span>{TEAM_LABELS[selectedCase.assigned_team] || selectedCase.assigned_team}</span>
+          {/* Status Change Control */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              Modifier le statut :
+            </span>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <select
+                value={selectedCase.status}
+                onChange={(e) => handleStatusChangeRequest(e.target.value as CaseStatus)}
+                disabled={updatingStatus}
+                style={{
+                  padding: '5px 28px 5px 10px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius-sm)',
+                  border: '0.5px solid var(--border-color)',
+                  background: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  cursor: updatingStatus ? 'not-allowed' : 'pointer',
+                  outline: 'none',
+                  appearance: 'none',
+                }}
+              >
+                <option value="new">Nouveau</option>
+                <option value="in_progress">En cours</option>
+                <option value="escalated">Escaladé (Sélection d'équipe)</option>
+                <option value="resolved">Résolu</option>
+              </select>
+              {updatingStatus ? (
+                <Loader2
+                  size={12}
+                  className="animate-spin"
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    pointerEvents: 'none',
+                    color: 'var(--text-muted)',
+                  }}
+                />
+              ) : (
+                <ChevronDown
+                  size={12}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    pointerEvents: 'none',
+                    color: 'var(--text-muted)',
+                  }}
+                />
+              )}
             </div>
-          )}
+          </div>
         </div>
+
+        {statusActionError && (
+          <div
+            style={{
+              padding: '8px 12px',
+              background: '#fef2f2',
+              border: '0.5px solid #fecaca',
+              borderRadius: 'var(--radius-sm)',
+              color: '#991b1b',
+              fontSize: '12px',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+            <span>{statusActionError}</span>
+          </div>
+        )}
 
         {/* Subject */}
         <h1
@@ -496,6 +678,16 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ selectedCase, agentsMap 
           </div>
         )}
       </div>
+
+      {selectedCase && (
+        <EscalateModal
+          isOpen={isEscalateModalOpen}
+          onClose={() => setIsEscalateModalOpen(false)}
+          caseItem={selectedCase}
+          currentAgent={currentAgent}
+          onStatusUpdated={handleEscalationComplete}
+        />
+      )}
     </section>
   );
 };

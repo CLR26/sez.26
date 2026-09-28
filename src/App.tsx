@@ -3,9 +3,11 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { CaseList } from './components/CaseList';
 import { CaseDetail } from './components/CaseDetail';
+import { CreateCaseModal } from './components/CreateCaseModal';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { DEMO_CASES, DEMO_AGENTS } from './data/mockData';
 import type { Case, Agent } from './types/database';
+import { Plus } from 'lucide-react';
 
 const MainView: React.FC = () => {
   const { session, agent, loading: authLoading, signOut } = useAuth();
@@ -15,6 +17,16 @@ const MainView: React.FC = () => {
   const [loadingCases, setLoadingCases] = useState<boolean>(true);
   const [caseError, setCaseError] = useState<string | null>(null);
   const [agentsMap, setAgentsMap] = useState<Record<string, Agent>>({});
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const handleCaseCreated = (newCase: Case) => {
+    setCases((prev) => [newCase, ...prev.filter((c) => c.id !== newCase.id)]);
+    setSelectedCaseId(newCase.id);
+  };
+
+  const handleCaseUpdated = (updatedCase: Case) => {
+    setCases((prev) => prev.map((c) => (c.id === updatedCase.id ? updatedCase : c)));
+  };
 
   const fetchCasesAndAgents = useCallback(async () => {
     setLoadingCases(true);
@@ -209,13 +221,24 @@ const MainView: React.FC = () => {
           loading={loadingCases}
           error={caseError}
           onRetry={fetchCasesAndAgents}
+          onCreateCase={() => setIsCreateModalOpen(true)}
         />
 
         <CaseDetail
           selectedCase={selectedCase}
           agentsMap={agentsMap}
+          currentAgent={agent}
+          onCaseUpdated={handleCaseUpdated}
         />
       </main>
+
+      {/* Create Case Modal */}
+      <CreateCaseModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCaseCreated={handleCaseCreated}
+        currentAgent={agent}
+      />
     </div>
   );
 };

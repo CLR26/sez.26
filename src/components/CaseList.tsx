@@ -14,6 +14,7 @@ import {
   Search,
   Inbox,
   Filter,
+  Plus,
 } from 'lucide-react';
 
 interface CaseListProps {
@@ -23,6 +24,7 @@ interface CaseListProps {
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  onCreateCase?: () => void;
 }
 
 export const CaseList: React.FC<CaseListProps> = ({
@@ -32,6 +34,7 @@ export const CaseList: React.FC<CaseListProps> = ({
   loading,
   error,
   onRetry,
+  onCreateCase,
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
@@ -94,23 +97,45 @@ export const CaseList: React.FC<CaseListProps> = ({
             </span>
           </div>
 
-          <button
-            onClick={onRetry}
-            disabled={loading}
-            title="Actualiser la liste"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              color: 'var(--text-secondary)',
-              padding: '4px',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {onCreateCase && (
+              <button
+                type="button"
+                onClick={onCreateCase}
+                className="btn-primary"
+                style={{
+                  marginTop: 0,
+                  padding: '4px 9px',
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+              >
+                <Plus size={13} />
+                <span>Nouveau</span>
+              </button>
+            )}
+
+            <button
+              onClick={onRetry}
+              disabled={loading}
+              title="Actualiser la liste"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                color: 'var(--text-secondary)',
+                padding: '4px',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
