@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import type { Case, CaseEvent, Agent, CaseStatus } from '../types/database';
+import type { Case, CaseEvent, Agent, CaseStatus, CaseChannel } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DEMO_EVENTS } from '../data/mockData';
 import { EscalateModal } from './EscalateModal';
@@ -29,6 +29,8 @@ import {
   ArrowUpRight,
   ChevronDown,
   Loader2,
+  Send,
+  CornerDownLeft,
 } from 'lucide-react';
 
 interface CaseDetailProps {
@@ -52,6 +54,13 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
   const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [statusActionError, setStatusActionError] = useState<string | null>(null);
+
+  // Note composer state
+  const [noteText, setNoteText] = useState('');
+  const [noteKind, setNoteKind] = useState<'note' | 'customer_update'>('note');
+  const [noteChannel, setNoteChannel] = useState<CaseChannel>('whatsapp');
+  const [submittingNote, setSubmittingNote] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async (caseId: number) => {
     setLoadingEvents(true);
@@ -95,12 +104,80 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
     if (selectedCase) {
       fetchEvents(selectedCase.id);
       setStatusActionError(null);
+      setNoteText('');
+      setNoteError(null);
     } else {
       setEvents([]);
       setEventError(null);
       setStatusActionError(null);
+      setNoteText('');
+      setNoteError(null);
     }
   }, [selectedCase, fetchEvents]);
+
+  const handleAddNote = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedCase || !noteText.trim() || submittingNote) return;
+
+    setSubmittingNote(true);
+    setNoteError(null);
+
+    const nowIso = new Date().toISOString();
+    const trimmedBody = noteText.trim();
+    const channelToSave = noteKind === 'customer_update' ? noteChannel : null;
+
+    if (!isSupabaseConfigured) {
+      const mockEvent: CaseEvent = {
+        id: Math.floor(3000 + Math.random() * 7000),
+        case_id: selectedCase.id,
+        author_id: currentAgent.id,
+        kind: noteKind,
+        channel: channelToSave,
+        body: trimmedBody,
+        created_at: nowIso,
+      };
+
+      if (!DEMO_EVENTS[selectedCase.id]) {
+        DEMO_EVENTS[selectedCase.id] = [];
+      }
+      DEMO_EVENTS[selectedCase.id].push(mockEvent);
+
+      setTimeout(() => {
+        setEvents((prev) => [...prev, mockEvent]);
+        setNoteText('');
+        setSubmittingNote(false);
+      }, 150);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('case_events')
+        .insert([
+          {
+            case_id: selectedCase.id,
+            author_id: currentAgent.id,
+            kind: noteKind,
+            channel: channelToSave,
+            body: trimmedBody,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setEvents((prev) => [...prev, data as CaseEvent]);
+      setNoteText('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors de l'enregistrement de la note";
+      setNoteError(message);
+    } finally {
+      setSubmittingNote(false);
+    }
+  };
 
   const handleStatusChangeRequest = async (targetStatus: CaseStatus) => {
     if (!selectedCase || targetStatus === selectedCase.status) return;
@@ -543,6 +620,186 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           </button>
         </div>
 
+        {/* Note Composer Box */}
+        <form
+          onSubmit={handleAddNote}
+          style={{
+            marginBottom: '20px',
+            padding: '14px 16px',
+            background: 'var(--bg-app)',
+            borderRadius: 'var(--radius-sm)',
+            border: '0.5px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginRight: '4px' }}>
+                Nouvelle entrée :
+              </span>
+              <button
+                type="button"
+                onClick={() => setNoteKind('note')}
+                style={{
+                  padding: '3px 9px',
+                  fontSize: '11px',
+                  fontWeight: noteKind === 'note' ? 600 : 400,
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: noteKind === 'note' ? 'var(--teal-primary)' : 'var(--bg-subtle)',
+                  color: noteKind === 'note' ? '#ffffff' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <FileText size={11} />
+                <span>Note interne</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setNoteKind('customer_update')}
+                style={{
+                  padding: '3px 9px',
+                  fontSize: '11px',
+                  fontWeight: noteKind === 'customer_update' ? 600 : 400,
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: noteKind === 'customer_update' ? 'var(--teal-primary)' : 'var(--bg-subtle)',
+                  color: noteKind === 'customer_update' ? '#ffffff' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <MessageSquare size={11} />
+                <span>Échange client</span>
+              </button>
+
+              {noteKind === 'customer_update' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNoteChannel('whatsapp')}
+                    className={noteChannel === 'whatsapp' ? 'badge badge-channel-whatsapp' : 'badge'}
+                    style={{
+                      cursor: 'pointer',
+                      border: noteChannel === 'whatsapp' ? '1px solid #16a34a' : '0.5px solid var(--border-color)',
+                      fontSize: '10px',
+                    }}
+                  >
+                    <MessageSquare size={10} />
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNoteChannel('email')}
+                    className={noteChannel === 'email' ? 'badge badge-channel-email' : 'badge'}
+                    style={{
+                      cursor: 'pointer',
+                      border: noteChannel === 'email' ? '1px solid #2563eb' : '0.5px solid var(--border-color)',
+                      fontSize: '10px',
+                    }}
+                  >
+                    <Mail size={10} />
+                    E-mail
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Agent : <strong>{currentAgent.full_name}</strong>
+            </span>
+          </div>
+
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                handleAddNote();
+              }
+            }}
+            placeholder={
+              noteKind === 'note'
+                ? "Rédiger une observation interne, une consigne pour un collègue ou une note de dossier..."
+                : `Consigner un échange client envoyé ou reçu via ${noteChannel === 'whatsapp' ? 'WhatsApp' : 'E-mail'}...`
+            }
+            rows={2}
+            disabled={submittingNote}
+            className="text-input"
+            style={{
+              resize: 'vertical',
+              minHeight: '60px',
+              fontSize: '13px',
+              lineHeight: 1.45,
+            }}
+          />
+
+          {noteError && (
+            <div
+              style={{
+                color: '#dc2626',
+                fontSize: '11px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <AlertCircle size={12} />
+              <span>{noteError}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Raccourci : <kbd style={{ padding: '1px 5px', background: 'var(--bg-subtle)', borderRadius: '3px', border: '0.5px solid var(--border-color)' }}>Ctrl + Entrée</kbd>
+            </span>
+
+            <button
+              type="submit"
+              disabled={submittingNote || !noteText.trim()}
+              className="btn-primary"
+              style={{
+                marginTop: 0,
+                padding: '6px 14px',
+                fontSize: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {submittingNote ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Envoi en cours...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={13} />
+                  <span>Ajouter au journal</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+
         {/* Loading Events */}
         {loadingEvents && (
           <div className="state-container" style={{ padding: '36px 0' }}>
@@ -596,18 +853,51 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
               Aucun événement consigné
             </span>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Ce dossier ne comporte encore aucune note, échange ou action d'escalade.
+              Utilisez le formulaire ci-dessus pour consigner la première note de ce dossier.
             </span>
           </div>
         )}
 
         {/* Event Timeline */}
         {!loadingEvents && events.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              position: 'relative',
+              paddingLeft: '22px',
+            }}
+          >
+            {/* Continuous timeline line */}
+            <div
+              style={{
+                position: 'absolute',
+                left: '7px',
+                top: '12px',
+                bottom: '16px',
+                width: '2px',
+                backgroundColor: 'var(--border-color)',
+              }}
+            />
+
             {events.map((evt, idx) => {
               const authorName = agentsMap[evt.author_id]?.full_name || `Agent (${evt.author_id.slice(0, 8)})`;
               const isEventWhatsapp = evt.channel === 'whatsapp';
               const isEventEmail = evt.channel === 'email';
+
+              let dotBg = '#e2e8f0';
+              let dotColor = '#475569';
+              if (evt.kind === 'escalation') {
+                dotBg = '#fee2e2';
+                dotColor = '#b91c1c';
+              } else if (evt.kind === 'customer_update') {
+                dotBg = isEventWhatsapp ? '#dcfce7' : '#dbeafe';
+                dotColor = isEventWhatsapp ? '#15803d' : '#1d4ed8';
+              } else if (evt.kind === 'status_change') {
+                dotBg = '#f3e8ff';
+                dotColor = '#7e22ce';
+              }
 
               return (
                 <div
@@ -620,6 +910,30 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
                     border: '0.5px solid var(--border-color)',
                   }}
                 >
+                  {/* Timeline Node Dot */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '-22px',
+                      top: '14px',
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      backgroundColor: dotBg,
+                      border: '2px solid var(--bg-surface)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: dotColor,
+                    }}
+                    title={EVENT_KIND_LABELS[evt.kind] || evt.kind}
+                  >
+                    {evt.kind === 'escalation' && <ArrowUpRight size={9} />}
+                    {evt.kind === 'customer_update' && (isEventWhatsapp ? <MessageSquare size={8} /> : <Mail size={8} />)}
+                    {evt.kind === 'note' && <FileText size={8} />}
+                    {evt.kind === 'status_change' && <RefreshCw size={8} />}
+                  </div>
+
                   {/* Top line: Kind badge, Channel, Author, Time */}
                   <div
                     style={{
