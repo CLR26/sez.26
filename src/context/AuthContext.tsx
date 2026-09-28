@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { Agent } from '../types/database';
@@ -17,12 +17,26 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+const areAgentsEqual = (a: Agent | null, b: Agent | null): boolean => {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.full_name === b.full_name &&
+    a.team === b.team &&
+    a.active === b.active
+  );
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [agent, setAgent] = useState<Agent | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const currentUserIdRef = useRef<string | null>(null);
+  const agentRef = useRef<Agent | null>(null);
 
   const fetchAgentProfile = async (userId: string) => {
     try {
@@ -40,11 +54,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Compte inactif. Contactez un administrateur.');
       }
 
-      setAgent(data as Agent);
+      const newAgent = data as Agent;
+      if (!areAgentsEqual(agentRef.current, newAgent)) {
+        agentRef.current = newAgent;
+        setAgent(newAgent);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erreur de profil agent';
       setError(message);
-      setAgent(null);
+      if (agentRef.current !== null) {
+        agentRef.current = null;
+        setAgent(null);
+      }
     }
   };
 
@@ -54,7 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const savedDemo = sessionStorage.getItem('demo_agent');
       if (savedDemo) {
         try {
-          const parsed = JSON.parse(savedDemo);
+          const parsed = JSON.parse(savedDemo) as Agent;
+          agentRef.current = parsed;
+          currentUserIdRef.current = parsed.id;
           setAgent(parsed);
           setUser({ id: parsed.id, email: 'demo@company.com' } as unknown as User);
           setSession({ access_token: 'demo-token', user: { id: parsed.id } } as unknown as Session);
@@ -66,27 +89,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    // Initial session check
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       if (currentSession?.user) {
+        currentUserIdRef.current = currentSession.user.id;
         fetchAgentProfile(currentSession.user.id).finally(() => setLoading(false));
       } else {
+        currentUserIdRef.current = null;
         setLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        setLoading(true);
-        await fetchAgentProfile(newSession.user.id);
-        setLoading(false);
-      } else {
-        setAgent(null);
-        setLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      // 1. Handle SIGNED_OUT or missing session
+      if (event === 'SIGNED_OUT' || !newSession?.user) {
+        currentUserIdRef.current = null;
+        setSession(null);
+        setUser(null);
+        if (agentRef.current !== null) {
+          agentRef.current = null;
+          setAgent(null);
+        }
+        return;
       }
+
+      const newUserId = newSession.user.id;
+
+      // 2. Ignore events unless user id changed (TOKEN_REFRESHED, repeated SIGNED_IN, etc.)
+      if (newUserId === currentUserIdRef.current) {
+        setSession(newSession);
+        return;
+      }
+
+      // 3. User ID actually changed: update session & fetch profile silently (never call setLoading(true))
+      currentUserIdRef.current = newUserId;
+      setSession(newSession);
+      setUser(newSession.user);
+      await fetchAgentProfile(newUserId);
     });
 
     return () => {

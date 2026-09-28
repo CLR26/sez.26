@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { CaseList } from './components/CaseList';
@@ -17,9 +17,14 @@ const MainView: React.FC = () => {
   const [cases, setCases] = useState<Case[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null);
   const [loadingCases, setLoadingCases] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [caseError, setCaseError] = useState<string | null>(null);
   const [agentsMap, setAgentsMap] = useState<Record<string, Agent>>({});
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const hasLoadedOnceRef = useRef(false);
+  const lastVisibilityRefreshRef = useRef<number>(Date.now());
+  const agentId = agent?.id;
 
   const handleCaseCreated = (newCase: Case) => {
     setCases((prev) => [newCase, ...prev.filter((c) => c.id !== newCase.id)]);
@@ -30,8 +35,13 @@ const MainView: React.FC = () => {
     setCases((prev) => prev.map((c) => (c.id === updatedCase.id ? updatedCase : c)));
   };
 
-  const fetchCasesAndAgents = useCallback(async () => {
-    setLoadingCases(true);
+  const fetchCasesAndAgents = useCallback(async (silent = false) => {
+    // Show list skeleton only on the first load; later refreshes are silent
+    if (!hasLoadedOnceRef.current && !silent) {
+      setLoadingCases(true);
+    } else {
+      setIsRefreshing(true);
+    }
     setCaseError(null);
 
     // If Supabase is not configured or in demo mode, use demo data
@@ -41,9 +51,12 @@ const MainView: React.FC = () => {
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setCases(sortedMock);
-        if (sortedMock.length > 0) {
-          setSelectedCaseId(sortedMock[0].id);
-        }
+        setSelectedCaseId((prevId) => {
+          if (prevId && sortedMock.some((c) => c.id === prevId)) {
+            return prevId;
+          }
+          return sortedMock.length > 0 ? sortedMock[0].id : null;
+        });
 
         const map: Record<string, Agent> = {};
         DEMO_AGENTS.forEach((ag) => {
@@ -53,8 +66,10 @@ const MainView: React.FC = () => {
           map[agent.id] = agent;
         }
         setAgentsMap(map);
+        hasLoadedOnceRef.current = true;
         setLoadingCases(false);
-      }, 200);
+        setIsRefreshing(false);
+      }, 150);
       return;
     }
 
@@ -85,7 +100,7 @@ const MainView: React.FC = () => {
       const caseList = data || [];
       setCases(caseList);
 
-      // Select first case if none currently selected or if selected was deleted
+      // Keep current selectedCaseId if valid, otherwise pick first
       setSelectedCaseId((prevId) => {
         if (prevId && caseList.some((c) => c.id === prevId)) {
           return prevId;
@@ -97,31 +112,53 @@ const MainView: React.FC = () => {
       setCaseError(message);
 
       // If database tables are not yet created in the Supabase instance, fall back to mock data
-      const sortedMock = [...DEMO_CASES].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      setCases(sortedMock);
-      if (sortedMock.length > 0) {
-        setSelectedCaseId(sortedMock[0].id);
+      if (!hasLoadedOnceRef.current) {
+        const sortedMock = [...DEMO_CASES].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setCases(sortedMock);
+        if (sortedMock.length > 0) {
+          setSelectedCaseId(sortedMock[0].id);
+        }
+        const map: Record<string, Agent> = {};
+        DEMO_AGENTS.forEach((ag) => {
+          map[ag.id] = ag;
+        });
+        if (agent) {
+          map[agent.id] = agent;
+        }
+        setAgentsMap(map);
       }
-      const map: Record<string, Agent> = {};
-      DEMO_AGENTS.forEach((ag) => {
-        map[ag.id] = ag;
-      });
-      if (agent) {
-        map[agent.id] = agent;
-      }
-      setAgentsMap(map);
     } finally {
+      hasLoadedOnceRef.current = true;
       setLoadingCases(false);
+      setIsRefreshing(false);
     }
-  }, [agent]);
+  }, [agentId]);
 
   useEffect(() => {
-    if (session && agent) {
+    if (session && agentId) {
       fetchCasesAndAgents();
     }
-  }, [session, agent, fetchCasesAndAgents]);
+  }, [session?.user?.id, agentId, fetchCasesAndAgents]);
+
+  // Refresh silently when the browser tab becomes visible again, at most once per 60 seconds, with no loading state
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (now - lastVisibilityRefreshRef.current >= 60000) {
+          lastVisibilityRefreshRef.current = now;
+          fetchCasesAndAgents(true);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchCasesAndAgents]);
 
   if (authLoading) {
     return (
@@ -320,8 +357,9 @@ const MainView: React.FC = () => {
             selectedCaseId={selectedCaseId}
             onSelectCase={(c) => setSelectedCaseId(c.id)}
             loading={loadingCases}
+            isRefreshing={isRefreshing}
             error={caseError}
-            onRetry={fetchCasesAndAgents}
+            onRetry={() => fetchCasesAndAgents(false)}
             onCreateCase={() => setIsCreateModalOpen(true)}
           />
 

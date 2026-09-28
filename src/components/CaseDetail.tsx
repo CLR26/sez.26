@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import type { Case, CaseEvent, Agent, CaseStatus, CaseChannel } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DEMO_EVENTS } from '../data/mockData';
@@ -100,20 +100,28 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
     }
   }, []);
 
+  const selectedCaseId = selectedCase?.id;
+  const prevCaseIdRef = useRef<number | null | undefined>(undefined);
+
   useEffect(() => {
-    if (selectedCase) {
-      fetchEvents(selectedCase.id);
+    if (selectedCaseId !== undefined && selectedCaseId !== null) {
+      fetchEvents(selectedCaseId);
       setStatusActionError(null);
-      setNoteText('');
-      setNoteError(null);
+      // Requirement 3: Never clear note draft when the same case is reloaded
+      if (prevCaseIdRef.current !== selectedCaseId) {
+        setNoteText('');
+        setNoteError(null);
+        prevCaseIdRef.current = selectedCaseId;
+      }
     } else {
       setEvents([]);
       setEventError(null);
       setStatusActionError(null);
       setNoteText('');
       setNoteError(null);
+      prevCaseIdRef.current = null;
     }
-  }, [selectedCase, fetchEvents]);
+  }, [selectedCaseId, fetchEvents]);
 
   const handleAddNote = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();

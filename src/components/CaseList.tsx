@@ -22,6 +22,7 @@ interface CaseListProps {
   selectedCaseId: number | null;
   onSelectCase: (caseItem: Case) => void;
   loading: boolean;
+  isRefreshing?: boolean;
   error: string | null;
   onRetry: () => void;
   onCreateCase?: () => void;
@@ -32,6 +33,7 @@ export const CaseList: React.FC<CaseListProps> = ({
   selectedCaseId,
   onSelectCase,
   loading,
+  isRefreshing = false,
   error,
   onRetry,
   onCreateCase,
@@ -119,21 +121,26 @@ export const CaseList: React.FC<CaseListProps> = ({
             )}
 
             <button
+              type="button"
               onClick={onRetry}
-              disabled={loading}
+              disabled={isRefreshing}
               title="Actualiser la liste"
               style={{
                 background: 'none',
-                border: 'none',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                border: '0.5px solid var(--border-color)',
+                cursor: isRefreshing ? 'not-allowed' : 'pointer',
                 color: 'var(--text-secondary)',
-                padding: '4px',
-                borderRadius: '4px',
+                padding: '4px 6px',
+                borderRadius: 'var(--radius-sm)',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.15s ease',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
             >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
