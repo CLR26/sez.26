@@ -156,12 +156,12 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
                 width: '28px',
                 height: '28px',
                 borderRadius: '6px',
-                background: '#fff7ed',
-                border: '0.5px solid #fed7aa',
+                background: 'var(--warning-bg)',
+                border: '0.5px solid var(--warning-border)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#c2410c',
+                color: 'var(--warning-text)',
               }}
             >
               <ArrowUpRight size={16} />
@@ -200,10 +200,10 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
             <div
               style={{
                 padding: '10px 12px',
-                background: '#fef2f2',
-                border: '0.5px solid #fecaca',
+                background: 'var(--danger-bg)',
+                border: '0.5px solid var(--danger-border)',
                 borderRadius: 'var(--radius-sm)',
-                color: '#991b1b',
+                color: 'var(--danger-text)',
                 fontSize: '13px',
                 display: 'flex',
                 alignItems: 'center',
@@ -218,7 +218,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
           {/* Team Selection (MANDATORY) */}
           <div className="field-group">
             <label className="field-label" style={{ fontWeight: 600 }}>
-              Équipe opérationnelle assignée <span style={{ color: '#ef4444' }}>* (Obligatoire)</span>
+              Équipe opérationnelle assignée <span style={{ color: 'var(--danger-text)' }}>* (Obligatoire)</span>
             </label>
             <div role="group" aria-label="Équipe opérationnelle assignée" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
@@ -276,7 +276,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
               </button>
             </div>
             {!selectedTeam && (
-              <p style={{ fontSize: '11px', color: '#c2410c', marginTop: '4px' }}>
+              <p style={{ fontSize: '11px', color: 'var(--warning-text)', marginTop: '4px' }}>
                 Veuillez sélectionner l'une des deux équipes pour autoriser l'escalade.
               </p>
             )}
@@ -290,7 +290,6 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
             <textarea
               id="escalate-reason"
               rows={3}
-              placeholder="Ex : Problème bloquant au niveau du dédouanement à l'arrivée..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               disabled={submitting}
@@ -335,8 +334,8 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
                 alignItems: 'center',
                 gap: '6px',
                 padding: '8px 16px',
-                backgroundColor: !selectedTeam ? '#cbd5e1' : '#c2410c',
-                color: '#ffffff',
+                backgroundColor: !selectedTeam ? 'var(--bg-subtle)' : 'var(--warning-action)',
+                color: !selectedTeam ? 'var(--text-muted)' : '#ffffff',
                 border: 'none',
                 borderRadius: 'var(--radius-sm)',
                 fontSize: '13px',

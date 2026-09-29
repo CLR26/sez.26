@@ -25,6 +25,7 @@ export interface Case {
   resolved_at: string | null;
   deleted_at?: string | null;
   deleted_by?: string | null;
+  permanently_deleted_at?: string | null;
 }
 
 export interface CaseEvent {

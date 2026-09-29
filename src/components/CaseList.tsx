@@ -1,12 +1,14 @@
 import React from 'react';
 import type { Agent, Case } from '../types/database';
-import type { WorkView } from '../App';
+import { getWorkViewCases, type WorkView } from '../lib/caseWorkflow';
 import { CHANNEL_LABELS, STATUS_LABELS, formatRelativeDate } from '../utils/formatters';
 import { AlertCircle, Archive, Inbox, Mail, MessageSquare, Plus, RefreshCw, Search } from 'lucide-react';
 
 interface CaseListProps {
   cases: Case[];
   allCases: Case[];
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
   selectedCaseId: number | null;
   onSelectCase: (caseItem: Case) => void;
   loading: boolean;
@@ -27,21 +29,7 @@ const views: { id: WorkView; label: string; icon: React.ReactNode }[] = [
   { id: 'archived', label: 'Archivés', icon: <Archive size={16} /> },
 ];
 
-export const CaseList: React.FC<CaseListProps> = ({ cases, allCases, selectedCaseId, onSelectCase, loading, isRefreshing = false, error, onRetry, onCreateCase, currentAgent, workView, onWorkViewChange }) => {
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const filteredCases = React.useMemo(() => {
-    const query = searchQuery.trim().toLocaleLowerCase();
-    if (!query) return cases;
-    return cases.filter((item) => [item.subject, item.customer_name, String(item.id)].some((value) => value.toLocaleLowerCase().includes(query)));
-  }, [cases, searchQuery]);
-  const countFor = (view: WorkView) => {
-    const active = allCases.filter((item) => !item.deleted_at);
-    if (view === 'mine') return active.filter((item) => item.owner_id === currentAgent.id).length;
-    if (view === 'escalated') return active.filter((item) => item.status === 'escalated').length;
-    if (view === 'resolved') return active.filter((item) => item.status === 'resolved').length;
-    if (view === 'archived') return allCases.filter((item) => Boolean(item.deleted_at)).length;
-    return active.length;
-  };
+export const CaseList: React.FC<CaseListProps> = ({ cases, allCases, searchQuery, onSearchQueryChange, selectedCaseId, onSelectCase, loading, isRefreshing = false, error, onRetry, onCreateCase, currentAgent, workView, onWorkViewChange }) => {
 
   return (
     <aside className="inbox-sidebar" aria-label="Dossiers">
@@ -51,18 +39,18 @@ export const CaseList: React.FC<CaseListProps> = ({ cases, allCases, selectedCas
       </div>
       <nav className="work-views" aria-label="Vues de travail">
         {views.map((view) => <button key={view.id} onClick={() => onWorkViewChange(view.id)} className={workView === view.id ? 'work-view active' : 'work-view'} aria-current={workView === view.id ? 'page' : undefined}>
-          {view.icon}<span>{view.label}</span><span className="work-view-count">{countFor(view.id)}</span>
+          {view.icon}<span>{view.label}</span><span className="work-view-count">{getWorkViewCases(allCases, view.id, currentAgent.id).length}</span>
         </button>)}
       </nav>
       <div className="list-tools">
-        <label className="search-field"><Search size={16} /><input id="case-search" type="search" placeholder="Rechercher un dossier" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /><kbd>/</kbd></label>
-        <div className="list-summary"><span>{filteredCases.length} {filteredCases.length > 1 ? 'dossiers' : 'dossier'}</span>{isRefreshing && <span className="refresh-label">Actualisation…</span>}</div>
+        <label className="search-field"><Search size={16} /><input id="case-search" type="search" placeholder="Rechercher un dossier" value={searchQuery} onChange={(event) => onSearchQueryChange(event.target.value)} /><kbd>/</kbd></label>
+        <div className="list-summary"><span>{cases.length} {cases.length > 1 ? 'dossiers' : 'dossier'}</span>{isRefreshing && <span className="refresh-label">Actualisation…</span>}</div>
       </div>
       <div className="case-list-scroll">
         {loading && cases.length === 0 && <div className="case-skeletons" aria-label="Chargement des dossiers">{[1, 2, 3, 4, 5].map((i) => <div className="case-skeleton" key={i}><div className="skeleton" style={{ width: '35%', height: 12 }} /><div className="skeleton" style={{ width: '85%', height: 16 }} /><div className="skeleton" style={{ width: '56%', height: 12 }} /></div>)}</div>}
         {error && <div className="list-state error-state"><AlertCircle size={22} /><strong>{cases.length ? 'Actualisation impossible' : 'Chargement impossible'}</strong><p>{error}</p><button className="button-secondary" onClick={onRetry}>Réessayer</button></div>}
-        {!loading && !error && filteredCases.length === 0 && <div className="list-state"><div className="empty-icon">{workView === 'archived' ? <Archive size={20} /> : <Inbox size={20} />}</div><strong>{searchQuery ? 'Aucun résultat' : workView === 'archived' ? 'Aucun dossier archivé' : 'La file est vide'}</strong><p>{searchQuery ? 'Essayez un autre nom, sujet ou numéro de dossier.' : workView === 'mine' ? 'Les dossiers dont vous êtes responsable apparaîtront ici.' : 'Aucun dossier ne correspond à cette vue pour le moment.'}</p>{searchQuery && <button className="button-secondary" onClick={() => setSearchQuery('')}>Effacer la recherche</button>}{!searchQuery && workView !== 'archived' && onCreateCase && <button className="button-secondary" onClick={onCreateCase}><Plus size={15} /> Nouveau dossier</button>}</div>}
-        {filteredCases.map((item) => {
+        {!loading && !error && cases.length === 0 && <div className="list-state"><div className="empty-icon">{workView === 'archived' ? <Archive size={20} /> : <Inbox size={20} />}</div><strong>{searchQuery ? 'Aucun résultat' : workView === 'archived' ? 'Aucun dossier archivé' : 'La file est vide'}</strong><p>{searchQuery ? 'Essayez un autre nom, sujet ou numéro de dossier.' : workView === 'mine' ? 'Les dossiers dont vous êtes responsable apparaîtront ici.' : 'Aucun dossier ne correspond à cette vue pour le moment.'}</p>{searchQuery && <button className="button-secondary" onClick={() => onSearchQueryChange('')}>Effacer la recherche</button>}</div>}
+        {cases.map((item) => {
           const selected = selectedCaseId === item.id;
           const isWhatsapp = item.channel === 'whatsapp';
           return <button key={item.id} type="button" onClick={() => onSelectCase(item)} className={selected ? 'case-row selected' : 'case-row'} aria-current={selected ? 'true' : undefined}>

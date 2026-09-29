@@ -35,13 +35,16 @@ import {
   Archive,
   ArchiveRestore,
   ArrowLeft,
+  Trash2,
 } from 'lucide-react';
+import { sortEventsNewestFirst } from '../lib/caseWorkflow';
 
 interface CaseDetailProps {
   selectedCase: Case | null;
   agentsMap: Record<string, Agent>;
   currentAgent: Agent;
   onCaseUpdated: (updatedCase: Case) => void;
+  onCaseDeleted: (caseId: number) => void;
   onNavigate: (direction: -1 | 1) => void;
   canNavigatePrevious: boolean;
   canNavigateNext: boolean;
@@ -53,6 +56,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
   agentsMap,
   currentAgent,
   onCaseUpdated,
+  onCaseDeleted,
   onNavigate,
   canNavigatePrevious,
   canNavigateNext,
@@ -75,6 +79,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
   const [noteError, setNoteError] = useState<string | null>(null);
   const [archiveBusy, setArchiveBusy] = useState(false);
   const [archiveMessage, setArchiveMessage] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeletingCase, setIsDeletingCase] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async (caseId: number) => {
     setLoadingEvents(true);
@@ -92,13 +99,14 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
         .from('case_events')
         .select('*')
         .eq('case_id', caseId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      setEvents(data || []);
+      setEvents(sortEventsNewestFirst(data || []));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erreur lors du chargement des événements';
       setEventError(message);
@@ -162,7 +170,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
         throw error;
       }
 
-      setEvents((prev) => [...prev, data as CaseEvent]);
+      setEvents((prev) => sortEventsNewestFirst([data as CaseEvent, ...prev]));
       setNoteText('');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur lors de l'enregistrement de la note";
@@ -248,6 +256,24 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
     } catch (err) {
       setStatusActionError(err instanceof Error ? err.message : 'Impossible de modifier l’archivage du dossier.');
     } finally { setArchiveBusy(false); }
+  };
+
+  const handleDeleteCase = async () => {
+    if (!selectedCase || isDeletingCase) return;
+    setIsDeletingCase(true);
+    setDeleteError(null);
+    try {
+      if (!isSupabaseConfigured) throw new Error('Supabase n’est pas configuré. Le dossier n’a pas été supprimé.');
+      const { data, error } = await supabase.rpc('delete_case', { target_case_id: selectedCase.id });
+      if (error) throw error;
+      if (data !== true) throw new Error('Ce dossier est introuvable ou déjà supprimé. Actualisez la liste.');
+      setIsDeleteDialogOpen(false);
+      onCaseDeleted(selectedCase.id);
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Impossible de supprimer ce dossier.');
+    } finally {
+      setIsDeletingCase(false);
+    }
   };
 
   if (!selectedCase) {
@@ -460,10 +486,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           <div
             style={{
               padding: '8px 12px',
-              background: '#fef2f2',
-              border: '0.5px solid #fecaca',
+              background: 'var(--danger-bg)',
+              border: '0.5px solid var(--danger-border)',
               borderRadius: 'var(--radius-sm)',
-              color: '#991b1b',
+              color: 'var(--danger-text)',
               fontSize: '12px',
               marginBottom: '12px',
               display: 'flex',
@@ -553,13 +579,23 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
             <div style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <CheckCircle2
                 size={13}
-                style={{ color: selectedCase.resolved_at ? '#059669' : 'var(--text-muted)' }}
+                style={{ color: selectedCase.resolved_at ? 'var(--status-resolved-text)' : 'var(--text-muted)' }}
               />
               <span>{selectedCase.resolved_at ? formatDateTime(selectedCase.resolved_at) : 'Non résolu (En cours)'}</span>
             </div>
           </div>
         </div>
       </div>
+
+      <section className="case-destructive-area" aria-label="Actions de conservation">
+        <div>
+          <strong>Actions de conservation</strong>
+          <p>La suppression retire ce dossier des vues et des rapports. Son historique est conservé.</p>
+        </div>
+        <button type="button" className="button-danger-quiet" onClick={() => { setDeleteError(null); setIsDeleteDialogOpen(true); }}>
+          <Trash2 size={15} /> Supprimer le dossier
+        </button>
+      </section>
 
       {/* Events / Timeline Card */}
       <div
@@ -700,7 +736,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
                     className={noteChannel === 'whatsapp' ? 'badge badge-channel-whatsapp' : 'badge'}
                     style={{
                       cursor: 'pointer',
-                      border: noteChannel === 'whatsapp' ? '1px solid #16a34a' : '0.5px solid var(--border-color)',
+                      border: noteChannel === 'whatsapp' ? '1px solid var(--channel-whatsapp-border)' : '0.5px solid var(--border-color)',
                       fontSize: '10px',
                     }}
                   >
@@ -713,7 +749,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
                     className={noteChannel === 'email' ? 'badge badge-channel-email' : 'badge'}
                     style={{
                       cursor: 'pointer',
-                      border: noteChannel === 'email' ? '1px solid #2563eb' : '0.5px solid var(--border-color)',
+                      border: noteChannel === 'email' ? '1px solid var(--channel-email-border)' : '0.5px solid var(--border-color)',
                       fontSize: '10px',
                     }}
                   >
@@ -731,17 +767,13 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
 
           <textarea
             value={noteText}
+            aria-label={noteKind === 'note' ? 'Nouvelle note interne' : 'Nouvelle mise à jour client'}
             onChange={(e) => setNoteText(e.target.value)}
             onKeyDown={(e) => {
               if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 handleAddNote();
               }
             }}
-            placeholder={
-              noteKind === 'note'
-                ? "Rédiger une observation interne, une consigne pour un collègue ou une note de dossier..."
-                : `Consigner un échange client envoyé ou reçu via ${noteChannel === 'whatsapp' ? 'WhatsApp' : 'E-mail'}...`
-            }
             rows={2}
             disabled={submittingNote}
             className="text-input"
@@ -756,7 +788,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           {noteError && (
             <div
               style={{
-                color: '#dc2626',
+                color: 'var(--danger-text)',
                 fontSize: '11px',
                 display: 'flex',
                 alignItems: 'center',
@@ -836,7 +868,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
                     width: '16px',
                     height: '16px',
                     borderRadius: '50%',
-                    backgroundColor: '#e2e8f0',
+                    backgroundColor: 'var(--event-system-bg)',
                     border: '2px solid var(--bg-surface)',
                   }}
                 />
@@ -858,10 +890,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           <div
             style={{
               padding: '12px 16px',
-              background: '#fef2f2',
-              border: '0.5px solid #fecaca',
+              background: 'var(--danger-bg)',
+              border: '0.5px solid var(--danger-border)',
               borderRadius: 'var(--radius-sm)',
-              color: '#991b1b',
+              color: 'var(--danger-text)',
               fontSize: '12px',
               marginBottom: '16px',
               display: 'flex',
@@ -880,7 +912,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
                 border: 'none',
                 textDecoration: 'underline',
                 cursor: 'pointer',
-                color: '#991b1b',
+                color: 'var(--danger-text)',
                 fontWeight: 500,
                 fontSize: '12px',
               }}
@@ -957,17 +989,17 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
               const isEventWhatsapp = evt.channel === 'whatsapp';
               const isEventEmail = evt.channel === 'email';
 
-              let dotBg = '#e2e8f0';
-              let dotColor = '#475569';
+              let dotBg = 'var(--event-system-bg)';
+              let dotColor = 'var(--event-system-text)';
               if (evt.kind === 'escalation') {
-                dotBg = '#fee2e2';
-                dotColor = '#b91c1c';
+                dotBg = 'var(--danger-bg)';
+                dotColor = 'var(--danger-text)';
               } else if (evt.kind === 'customer_update') {
-                dotBg = isEventWhatsapp ? '#dcfce7' : '#dbeafe';
-                dotColor = isEventWhatsapp ? '#15803d' : '#1d4ed8';
+                dotBg = isEventWhatsapp ? 'var(--channel-whatsapp-bg)' : 'var(--channel-email-bg)';
+                dotColor = isEventWhatsapp ? 'var(--channel-whatsapp-text)' : 'var(--channel-email-text)';
               } else if (evt.kind === 'status_change') {
-                dotBg = '#f3e8ff';
-                dotColor = '#7e22ce';
+                dotBg = 'var(--event-status-bg)';
+                dotColor = 'var(--event-status-text)';
               }
 
               return (
@@ -1073,6 +1105,36 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           currentAgent={currentAgent}
           onStatusUpdated={handleEscalationComplete}
         />
+      )}
+
+      {selectedCase && isDeleteDialogOpen && (
+        <div className="delete-dialog-backdrop">
+          <section
+            className="delete-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-case-title"
+            aria-describedby="delete-case-description"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !isDeletingCase) {
+                event.stopPropagation();
+                setIsDeleteDialogOpen(false);
+              }
+            }}
+          >
+            <div className="delete-dialog-icon"><Trash2 size={19} /></div>
+            <h2 id="delete-case-title">Supprimer le dossier #{selectedCase.id} ?</h2>
+            <p id="delete-case-description">Il disparaîtra des vues, de la recherche et des indicateurs. L’historique du dossier sera conservé et cette action ne pourra pas être annulée.</p>
+            {deleteError && <div role="alert" className="notice-box">{deleteError}</div>}
+            <div className="delete-dialog-actions">
+              <button type="button" className="button-secondary" autoFocus disabled={isDeletingCase} onClick={() => setIsDeleteDialogOpen(false)}>Annuler</button>
+              <button type="button" className="button-danger" disabled={isDeletingCase} onClick={() => void handleDeleteCase()}>
+                {isDeletingCase ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                Supprimer le dossier
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </section>
   );

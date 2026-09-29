@@ -43,9 +43,9 @@ export const Login: React.FC = () => {
               padding: '10px 12px',
               borderRadius: '6px',
               fontSize: '12px',
-              background: '#fef3c7',
-              border: '0.5px solid #f59e0b',
-              color: '#92400e',
+              background: 'var(--warning-bg)',
+              border: '0.5px solid var(--warning-border)',
+              color: 'var(--warning-text)',
               lineHeight: 1.4,
             }}
           >
@@ -69,7 +69,6 @@ export const Login: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              placeholder="agent@company.com"
               className="text-input"
               required
             />

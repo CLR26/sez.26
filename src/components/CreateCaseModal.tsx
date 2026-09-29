@@ -215,10 +215,10 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
             <div
               style={{
                 padding: '10px 12px',
-                background: '#fef2f2',
-                border: '0.5px solid #fecaca',
+                background: 'var(--danger-bg)',
+                border: '0.5px solid var(--danger-border)',
                 borderRadius: 'var(--radius-sm)',
-                color: '#991b1b',
+                color: 'var(--danger-text)',
                 fontSize: '13px',
                 display: 'flex',
                 alignItems: 'center',
@@ -233,12 +233,11 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
           {/* Subject */}
           <div className="field-group">
             <label htmlFor="create-subject" className="field-label">
-              Sujet du dossier <span style={{ color: '#ef4444' }}>*</span>
+              Sujet du dossier <span style={{ color: 'var(--danger-text)' }}>*</span>
             </label>
             <input
               id="create-subject"
               type="text"
-              placeholder="Ex : Retard livraison conteneur #C-492, Déclaration douanière..."
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               disabled={submitting || createdCaseId !== null}
@@ -251,12 +250,11 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div className="field-group">
               <label htmlFor="create-customer" className="field-label">
-                Nom du client <span style={{ color: '#ef4444' }}>*</span>
+                Nom du client <span style={{ color: 'var(--danger-text)' }}>*</span>
               </label>
               <input
                 id="create-customer"
                 type="text"
-                placeholder="Ex : Mada Transit SARL"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 disabled={submitting}
@@ -272,7 +270,6 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
               <input
                 id="create-contact"
                 type="text"
-                placeholder="Ex : +261 34 00 000 00"
                 value={customerContact}
                 onChange={(e) => setCustomerContact(e.target.value)}
                 disabled={submitting}
@@ -284,7 +281,7 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
           {/* Channel selector */}
           <div className="field-group">
             <label className="field-label">
-              Canal d'origine <span style={{ color: '#ef4444' }}>*</span>
+              Canal d'origine <span style={{ color: 'var(--danger-text)' }}>*</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
@@ -297,9 +294,9 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
                   gap: '8px',
                   padding: '9px 12px',
                   borderRadius: 'var(--radius-sm)',
-                  border: channel === 'whatsapp' ? '1.5px solid #16a34a' : '0.5px solid var(--border-color)',
-                  background: channel === 'whatsapp' ? '#f0fdf4' : 'var(--bg-surface)',
-                  color: channel === 'whatsapp' ? '#15803d' : 'var(--text-secondary)',
+                  border: channel === 'whatsapp' ? '1.5px solid var(--channel-whatsapp-border)' : '0.5px solid var(--border-color)',
+                  background: channel === 'whatsapp' ? 'var(--channel-whatsapp-bg)' : 'var(--bg-surface)',
+                  color: channel === 'whatsapp' ? 'var(--channel-whatsapp-text)' : 'var(--text-secondary)',
                   fontWeight: channel === 'whatsapp' ? 600 : 400,
                   fontSize: '13px',
                   cursor: 'pointer',
@@ -320,9 +317,9 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
                   gap: '8px',
                   padding: '9px 12px',
                   borderRadius: 'var(--radius-sm)',
-                  border: channel === 'email' ? '1.5px solid #2563eb' : '0.5px solid var(--border-color)',
-                  background: channel === 'email' ? '#eff6ff' : 'var(--bg-surface)',
-                  color: channel === 'email' ? '#1d4ed8' : 'var(--text-secondary)',
+                  border: channel === 'email' ? '1.5px solid var(--channel-email-border)' : '0.5px solid var(--border-color)',
+                  background: channel === 'email' ? 'var(--channel-email-bg)' : 'var(--bg-surface)',
+                  color: channel === 'email' ? 'var(--channel-email-text)' : 'var(--text-secondary)',
                   fontWeight: channel === 'email' ? 600 : 400,
                   fontSize: '13px',
                   cursor: 'pointer',
@@ -338,7 +335,7 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
           {/* Category */}
           <div className="field-group">
             <label htmlFor="create-category" className="field-label">
-              Catégorie <span style={{ color: '#ef4444' }}>*</span>
+              Catégorie <span style={{ color: 'var(--danger-text)' }}>*</span>
             </label>
             <select
               id="create-category"

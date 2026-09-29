@@ -7,9 +7,8 @@ import { CreateCaseModal } from './components/CreateCaseModal';
 import { ReportingView } from './components/ReportingView';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import type { Case, Agent } from './types/database';
-import { BarChart3, Inbox, Loader2, Plus, LogOut } from 'lucide-react';
-
-export type WorkView = 'mine' | 'all' | 'escalated' | 'resolved' | 'archived';
+import { getWorkViewCases, isPermanentlyDeletedCase, type WorkView } from './lib/caseWorkflow';
+import { BarChart3, Inbox, Loader2, LogOut } from 'lucide-react';
 
 const MainView: React.FC = () => {
   const { session, agent, loading: authLoading, signOut } = useAuth();
@@ -22,6 +21,7 @@ const MainView: React.FC = () => {
   const [caseError, setCaseError] = useState<string | null>(null);
   const [agentsMap, setAgentsMap] = useState<Record<string, Agent>>({});
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [mobilePane, setMobilePane] = useState<'list' | 'detail'>('list');
   const hasLoadedOnceRef = useRef(false);
   const lastVisibilityRefreshRef = useRef(Date.now());
@@ -35,6 +35,15 @@ const MainView: React.FC = () => {
   const handleCaseUpdated = (updatedCase: Case) => {
     setCases((prev) => prev.map((item) => item.id === updatedCase.id ? updatedCase : item));
     if (!updatedCase.deleted_at && workView === 'archived') setWorkView('all');
+  };
+
+  const viewCases = getWorkViewCases(cases, workView, agent?.id ?? '', searchQuery);
+  const handleCaseDeleted = (caseId: number) => {
+    const deletedIndex = viewCases.findIndex((item) => item.id === caseId);
+    const nextCase = viewCases[deletedIndex + 1] ?? viewCases[deletedIndex - 1] ?? viewCases[0] ?? null;
+    setCases((prev) => prev.filter((item) => item.id !== caseId && !isPermanentlyDeletedCase(item)));
+    setSelectedCaseId(nextCase?.id ?? null);
+    setMobilePane(nextCase ? 'detail' : 'list');
   };
 
   const fetchCasesAndAgents = useCallback(async (silent = false) => {
@@ -88,16 +97,7 @@ const MainView: React.FC = () => {
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [fetchCasesAndAgents]);
 
-  const viewCases = cases.filter((item) => {
-    const archived = Boolean(item.deleted_at);
-    if (workView === 'archived') return archived;
-    if (archived) return false;
-    if (workView === 'mine') return item.owner_id === agent?.id;
-    if (workView === 'escalated') return item.status === 'escalated';
-    if (workView === 'resolved') return item.status === 'resolved';
-    return true;
-  });
-  const selectedCase = cases.find((item) => item.id === selectedCaseId) || null;
+  const selectedCase = cases.find((item) => item.id === selectedCaseId && !isPermanentlyDeletedCase(item)) || null;
 
   const navigateCase = (direction: -1 | 1) => {
     const index = viewCases.findIndex((item) => item.id === selectedCaseId);
@@ -128,18 +128,17 @@ const MainView: React.FC = () => {
       <header className="app-header">
         <div className="brand-lockup"><span className="brand-mark">C</span><div><strong>CS - MADA</strong><small>Service client</small></div></div>
         <nav className="top-navigation" aria-label="Navigation principale">
-          <button className={activeTab === 'cases' ? 'top-nav-button active' : 'top-nav-button'} onClick={() => setActiveTab('cases')}><Inbox size={16} /> Dossiers <span className="count-pill">{cases.filter((item) => !item.deleted_at).length}</span></button>
+          <button className={activeTab === 'cases' ? 'top-nav-button active' : 'top-nav-button'} onClick={() => setActiveTab('cases')}><Inbox size={16} /> Dossiers <span className="count-pill">{cases.filter((item) => !item.deleted_at && !isPermanentlyDeletedCase(item)).length}</span></button>
           <button className={activeTab === 'reporting' ? 'top-nav-button active' : 'top-nav-button'} onClick={() => setActiveTab('reporting')}><BarChart3 size={16} /> Rapports</button>
         </nav>
         <div className="account-menu"><span className="agent-presence" /><div><strong>{agent.full_name}</strong><small>{teamLabel}</small></div><button className="icon-button" aria-label="Se déconnecter" title="Se déconnecter" onClick={() => void signOut()}><LogOut size={16} /></button></div>
       </header>
       {activeTab === 'cases' ? (
         <main className={`inbox-layout ${mobilePane === 'list' ? 'show-list-mobile' : 'show-detail-mobile'}`}>
-          <CaseList cases={viewCases} allCases={cases} selectedCaseId={selectedCaseId} onSelectCase={(item) => { setSelectedCaseId(item.id); setMobilePane('detail'); }} loading={loadingCases} isRefreshing={isRefreshing} error={caseError} onRetry={() => void fetchCasesAndAgents(false)} onCreateCase={() => setIsCreateModalOpen(true)} currentAgent={agent} workView={workView} onWorkViewChange={(view) => { setWorkView(view); setMobilePane('list'); }} />
-          <CaseDetail selectedCase={selectedCase} agentsMap={agentsMap} currentAgent={agent} onCaseUpdated={handleCaseUpdated} onNavigate={navigateCase} canNavigatePrevious={viewCases.findIndex((item) => item.id === selectedCaseId) > 0} canNavigateNext={viewCases.findIndex((item) => item.id === selectedCaseId) < viewCases.length - 1} onBackToList={() => setMobilePane('list')} />
+          <CaseList cases={viewCases} allCases={cases} searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} selectedCaseId={selectedCaseId} onSelectCase={(item) => { setSelectedCaseId(item.id); setMobilePane('detail'); }} loading={loadingCases} isRefreshing={isRefreshing} error={caseError} onRetry={() => void fetchCasesAndAgents(false)} onCreateCase={() => setIsCreateModalOpen(true)} currentAgent={agent} workView={workView} onWorkViewChange={(view) => { setWorkView(view); setMobilePane('list'); }} />
+          <CaseDetail selectedCase={selectedCase} agentsMap={agentsMap} currentAgent={agent} onCaseUpdated={handleCaseUpdated} onCaseDeleted={handleCaseDeleted} onNavigate={navigateCase} canNavigatePrevious={viewCases.findIndex((item) => item.id === selectedCaseId) > 0} canNavigateNext={viewCases.findIndex((item) => item.id === selectedCaseId) >= 0 && viewCases.findIndex((item) => item.id === selectedCaseId) < viewCases.length - 1} onBackToList={() => setMobilePane('list')} />
         </main>
       ) : <main className="reporting-layout"><ReportingView /></main>}
-      <button className="floating-create" aria-label="Créer un dossier" onClick={() => setIsCreateModalOpen(true)}><Plus size={18} /></button>
       <CreateCaseModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onCaseCreated={handleCaseCreated} currentAgent={agent} />
     </div>
   );
