@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Case, CaseEvent, Agent, CaseStatus, CaseChannel } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { EscalateModal } from './EscalateModal';
@@ -1100,7 +1101,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
         />
       )}
 
-      {selectedCase && isDeleteDialogOpen && (
+      {selectedCase && isDeleteDialogOpen && createPortal(
         <div className="app-dialog-backdrop delete-dialog-backdrop">
           <section
             className="app-dialog delete-dialog"
@@ -1136,7 +1137,8 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
               </button>
             </footer>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </section>
   );

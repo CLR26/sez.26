@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Case, CaseTeam, Agent } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { TEAM_LABELS } from '../utils/formatters';
@@ -105,7 +106,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div
       className="app-dialog-backdrop"
       onClick={(e) => {
@@ -227,6 +228,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
           </footer>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
