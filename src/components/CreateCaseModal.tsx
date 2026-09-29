@@ -25,6 +25,42 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createdCaseId, setCreatedCaseId] = useState<number | null>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
+  const hasDraftRef = React.useRef(false);
+  hasDraftRef.current = Boolean(subject.trim() || customerName.trim() || customerContact.trim());
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      returnFocusRef.current?.focus();
+      return;
+    }
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.querySelector<HTMLElement>('#create-subject:not(:disabled)')?.focus();
+  }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Tab' && dialogRef.current) {
+        const items = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'));
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+        return;
+      }
+      if (event.key !== 'Escape' || submitting) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (hasDraftRef.current && !window.confirm('Fermer ce formulaire et conserver le brouillon pour plus tard ?')) return;
+      onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, submitting, onClose]);
 
   if (!isOpen) return null;
 
@@ -42,29 +78,9 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
     setSubmitting(true);
     setError(null);
 
-    const nowIso = new Date().toISOString();
-
     if (!isSupabaseConfigured) {
-      // Mock creation in demo mode
-      const newMockCase: Case = {
-        id: Math.floor(1000 + Math.random() * 9000),
-        subject: subject.trim(),
-        customer_name: customerName.trim(),
-        customer_contact: customerContact.trim() || null,
-        channel,
-        category,
-        status: 'new',
-        owner_id: currentAgent.id,
-        assigned_team: null,
-        created_at: nowIso,
-        resolved_at: null,
-      };
-
-      setTimeout(() => {
-        setSubmitting(false);
-        onCaseCreated(newMockCase);
-        onClose();
-      }, 200);
+      setError('Supabase n’est pas configuré. Le dossier n’a pas été créé.');
+      setSubmitting(false);
       return;
     }
 
@@ -90,10 +106,12 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
       if (insertCaseError) {
         throw insertCaseError;
       }
+      onCaseCreated(insertedCase as Case);
+      setCreatedCaseId(insertedCase.id);
 
       // 2. Insert initial event in case_events
       const channelLabel = CHANNEL_LABELS[channel];
-      await supabase.from('case_events').insert([
+      const { error: eventError } = await supabase.from('case_events').insert([
         {
           case_id: insertedCase.id,
           author_id: currentAgent.id,
@@ -102,8 +120,15 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
           body: `Dossier ouvert pour ${customerName.trim()} via ${channelLabel}.`,
         },
       ]);
+      if (eventError) throw new Error(`Le dossier #${insertedCase.id} est créé, mais l’entrée initiale au journal a échoué : ${eventError.message}. Ne relancez pas la création.`);
 
-      onCaseCreated(insertedCase as Case);
+      setSubject('');
+      setCustomerName('');
+      setCustomerContact('');
+      setChannel('whatsapp');
+      setCategory('customs');
+      setCreatedCaseId(null);
+      setError(null);
       onClose();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la création du dossier';
@@ -131,6 +156,11 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
       }}
     >
       <div
+        ref={dialogRef}
+        className="modal-surface"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-case-title"
         style={{
           width: '100%',
           maxWidth: '520px',
@@ -154,7 +184,7 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
           }}
         >
           <div>
-            <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <h2 id="create-case-title" style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
               Nouveau dossier client
             </h2>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -163,6 +193,7 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
           </div>
           <button
             type="button"
+            aria-label="Fermer le formulaire"
             onClick={onClose}
             disabled={submitting}
             style={{
@@ -210,7 +241,7 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
               placeholder="Ex : Retard livraison conteneur #C-492, Déclaration douanière..."
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              disabled={submitting}
+              disabled={submitting || createdCaseId !== null}
               className="text-input"
               required
             />
@@ -313,7 +344,7 @@ export const CreateCaseModal: React.FC<CreateCaseModalProps> = ({
               id="create-category"
               value={category}
               onChange={(e) => setCategory(e.target.value as CaseCategory)}
-              disabled={submitting}
+              disabled={submitting || createdCaseId !== null}
               className="text-input"
               style={{ cursor: 'pointer' }}
             >

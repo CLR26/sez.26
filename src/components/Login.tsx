@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export const Login: React.FC = () => {
-  const { signIn, signInDemo, isConfigured, error: authError } = useAuth();
+  const { signIn, isConfigured, error: authError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export const Login: React.FC = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="login-title">Suivi des dossiers</h1>
+          <h1 className="login-title">CS - MADA</h1>
           <p className="login-subtitle">Connectez-vous à votre espace agent</p>
         </div>
 
@@ -49,7 +49,7 @@ export const Login: React.FC = () => {
               lineHeight: 1.4,
             }}
           >
-            <strong>Mode démo actif :</strong> Les variables Supabase (<code>VITE_SUPABASE_URL</code>) ne sont pas encore définies. Vous pouvez vous connecter en mode démo ci-dessous ou entrer vos identifiants réels une fois Supabase configuré.
+              <strong>Configuration requise :</strong> les variables <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> doivent être définies pour utiliser l’espace agent.
           </div>
         )}
 
@@ -97,26 +97,6 @@ export const Login: React.FC = () => {
             {loading ? 'Connexion en cours...' : 'Se connecter'}
           </button>
 
-          {!isConfigured && signInDemo && (
-            <button
-              type="button"
-              onClick={signInDemo}
-              className="btn-secondary"
-              style={{
-                marginTop: '4px',
-                padding: '8px 16px',
-                background: 'transparent',
-                border: '1px dashed var(--teal-primary)',
-                color: 'var(--teal-primary)',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 500,
-              }}
-            >
-              Accéder avec un compte agent de test
-            </button>
-          )}
         </form>
       </div>
     </div>

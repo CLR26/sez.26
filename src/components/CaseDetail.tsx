@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import type { Case, CaseEvent, Agent, CaseStatus, CaseChannel } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { DEMO_EVENTS } from '../data/mockData';
 import { EscalateModal } from './EscalateModal';
 import {
   STATUS_LABELS,
@@ -31,6 +30,11 @@ import {
   Loader2,
   Send,
   CornerDownLeft,
+  ChevronLeft,
+  ChevronRight,
+  Archive,
+  ArchiveRestore,
+  ArrowLeft,
 } from 'lucide-react';
 
 interface CaseDetailProps {
@@ -38,6 +42,10 @@ interface CaseDetailProps {
   agentsMap: Record<string, Agent>;
   currentAgent: Agent;
   onCaseUpdated: (updatedCase: Case) => void;
+  onNavigate: (direction: -1 | 1) => void;
+  canNavigatePrevious: boolean;
+  canNavigateNext: boolean;
+  onBackToList: () => void;
 }
 
 export const CaseDetail: React.FC<CaseDetailProps> = ({
@@ -45,6 +53,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
   agentsMap,
   currentAgent,
   onCaseUpdated,
+  onNavigate,
+  canNavigatePrevious,
+  canNavigateNext,
+  onBackToList,
 }) => {
   const [events, setEvents] = useState<CaseEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState<boolean>(false);
@@ -61,18 +73,17 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
   const [noteChannel, setNoteChannel] = useState<CaseChannel>('whatsapp');
   const [submittingNote, setSubmittingNote] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveMessage, setArchiveMessage] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async (caseId: number) => {
     setLoadingEvents(true);
     setEventError(null);
 
     if (!isSupabaseConfigured) {
-      // Demo mock fallback
-      setTimeout(() => {
-        const mockList = DEMO_EVENTS[caseId] || [];
-        setEvents(mockList);
-        setLoadingEvents(false);
-      }, 150);
+      setEvents([]);
+      setEventError('Supabase n’est pas configuré. Le journal ne peut pas être chargé.');
+      setLoadingEvents(false);
       return;
     }
 
@@ -91,10 +102,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erreur lors du chargement des événements';
       setEventError(message);
-      // If table doesn't exist yet, fall back gracefully to demo mock if available
-      if (DEMO_EVENTS[caseId]) {
-        setEvents(DEMO_EVENTS[caseId]);
-      }
+      setEvents([]);
     } finally {
       setLoadingEvents(false);
     }
@@ -130,33 +138,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
     setSubmittingNote(true);
     setNoteError(null);
 
-    const nowIso = new Date().toISOString();
     const trimmedBody = noteText.trim();
     const channelToSave = noteKind === 'customer_update' ? noteChannel : null;
 
-    if (!isSupabaseConfigured) {
-      const mockEvent: CaseEvent = {
-        id: Math.floor(3000 + Math.random() * 7000),
-        case_id: selectedCase.id,
-        author_id: currentAgent.id,
-        kind: noteKind,
-        channel: channelToSave,
-        body: trimmedBody,
-        created_at: nowIso,
-      };
-
-      if (!DEMO_EVENTS[selectedCase.id]) {
-        DEMO_EVENTS[selectedCase.id] = [];
-      }
-      DEMO_EVENTS[selectedCase.id].push(mockEvent);
-
-      setTimeout(() => {
-        setEvents((prev) => [...prev, mockEvent]);
-        setNoteText('');
-        setSubmittingNote(false);
-      }, 150);
-      return;
-    }
+    if (!isSupabaseConfigured) { setNoteError('Supabase n’est pas configuré. Votre message n’a pas été enregistré.'); setSubmittingNote(false); return; }
 
     try {
       const { data, error } = await supabase
@@ -200,38 +185,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
     setUpdatingStatus(true);
     setStatusActionError(null);
 
-    const nowIso = new Date().toISOString();
-    const isResolved = targetStatus === 'resolved';
-
-    if (!isSupabaseConfigured) {
-      const updatedMock: Case = {
-        ...selectedCase,
-        status: targetStatus,
-        resolved_at: isResolved ? nowIso : null,
-      };
-
-      const newMockEvent: CaseEvent = {
-        id: Math.floor(2000 + Math.random() * 8000),
-        case_id: selectedCase.id,
-        author_id: currentAgent.id,
-        kind: 'status_change',
-        channel: null,
-        body: `Statut passé de "${STATUS_LABELS[selectedCase.status]}" à "${STATUS_LABELS[targetStatus]}".`,
-        created_at: nowIso,
-      };
-
-      if (!DEMO_EVENTS[selectedCase.id]) {
-        DEMO_EVENTS[selectedCase.id] = [];
-      }
-      DEMO_EVENTS[selectedCase.id].push(newMockEvent);
-
-      setTimeout(() => {
-        setUpdatingStatus(false);
-        onCaseUpdated(updatedMock);
-        setEvents((prev) => [...prev, newMockEvent]);
-      }, 150);
-      return;
-    }
+    if (!isSupabaseConfigured) { setStatusActionError('Supabase n’est pas configuré. Le statut n’a pas été modifié.'); setUpdatingStatus(false); return; }
 
     try {
       // 1. Update cases table
@@ -239,7 +193,6 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
         .from('cases')
         .update({
           status: targetStatus,
-          resolved_at: isResolved ? nowIso : null,
         })
         .eq('id', selectedCase.id)
         .select()
@@ -248,10 +201,11 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
       if (updateError) {
         throw updateError;
       }
+      onCaseUpdated(updatedData as Case);
 
       // 2. Insert event in case_events
       const eventText = `Statut passé de "${STATUS_LABELS[selectedCase.status]}" à "${STATUS_LABELS[targetStatus]}".`;
-      await supabase.from('case_events').insert([
+      const { error: eventError } = await supabase.from('case_events').insert([
         {
           case_id: selectedCase.id,
           author_id: currentAgent.id,
@@ -260,9 +214,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           body: eventText,
         },
       ]);
+      if (eventError) throw eventError;
 
-      onCaseUpdated(updatedData as Case);
-      fetchEvents(selectedCase.id);
+      await fetchEvents(selectedCase.id);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du statut';
       setStatusActionError(message);
@@ -276,6 +230,24 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
     if (selectedCase) {
       fetchEvents(selectedCase.id);
     }
+  };
+
+  const handleArchive = async () => {
+    if (!selectedCase || archiveBusy) return;
+    const restoring = Boolean(selectedCase.deleted_at);
+    if (!restoring && !window.confirm(`Archiver le dossier #${selectedCase.id} ? Il restera disponible dans la vue Archivés.`)) return;
+    setArchiveBusy(true);
+    setStatusActionError(null);
+    setArchiveMessage(null);
+    try {
+      if (!isSupabaseConfigured) throw new Error('Supabase n’est pas configuré.');
+      const { data, error } = await supabase.from('cases').update(restoring ? { deleted_at: null } : { deleted_at: new Date().toISOString() }).eq('id', selectedCase.id).select().single();
+      if (error) throw error;
+      onCaseUpdated(data as Case);
+      setArchiveMessage(restoring ? 'Dossier restauré.' : 'Dossier archivé.');
+    } catch (err) {
+      setStatusActionError(err instanceof Error ? err.message : 'Impossible de modifier l’archivage du dossier.');
+    } finally { setArchiveBusy(false); }
   };
 
   if (!selectedCase) {
@@ -366,6 +338,11 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
         }}
       >
+        <div className="case-detail-toolbar">
+          <div className="case-navigation"><button className="mobile-back-button" onClick={onBackToList}><ArrowLeft size={15} /> Dossiers</button><button className="icon-button" aria-label="Dossier précédent (K)" title="Précédent · K" disabled={!canNavigatePrevious} onClick={() => onNavigate(-1)}><ChevronLeft size={17} /></button><button className="icon-button" aria-label="Dossier suivant (J)" title="Suivant · J" disabled={!canNavigateNext} onClick={() => onNavigate(1)}><ChevronRight size={17} /></button><span>#{selectedCase.id}</span></div>
+          <button className="button-secondary" onClick={() => void handleArchive()} disabled={archiveBusy}>{selectedCase.deleted_at ? <ArchiveRestore size={15} /> : <Archive size={15} />}{selectedCase.deleted_at ? 'Restaurer' : 'Archiver'}</button>
+        </div>
+        {archiveMessage && <div role="status" className="success-message">{archiveMessage}</div>}
         {/* Badges & ID row */}
         <div
           style={{
@@ -914,7 +891,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
         )}
 
         {/* Empty Events */}
-        {!loadingEvents && events.length === 0 && (
+        {!loadingEvents && !eventError && events.length === 0 && (
           <div
             style={{
               padding: '36px 20px',
@@ -1003,6 +980,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
                     background: 'var(--bg-app)',
                     border: '0.5px solid var(--border-color)',
                   }}
+                  className={`event-${evt.kind}`}
                 >
                   {/* Timeline Node Dot */}
                   <div

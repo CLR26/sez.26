@@ -23,6 +23,8 @@ export interface Case {
   assigned_team: CaseTeam | null;
   created_at: string;
   resolved_at: string | null;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
 }
 
 export interface CaseEvent {
@@ -33,12 +35,4 @@ export interface CaseEvent {
   channel: CaseChannel | null;
   body: string;
   created_at: string;
-}
-
-export interface KpiCase {
-  category: CaseCategory;
-  channel: CaseChannel;
-  resolved_count: number;
-  open_count: number;
-  avg_resolution_time: string | null;
 }

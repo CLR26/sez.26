@@ -12,7 +12,6 @@ interface AuthContextValue {
   isConfigured: boolean;
   signIn: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
-  signInDemo?: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -71,20 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      // Check if there is a demo agent in session storage
-      const savedDemo = sessionStorage.getItem('demo_agent');
-      if (savedDemo) {
-        try {
-          const parsed = JSON.parse(savedDemo) as Agent;
-          agentRef.current = parsed;
-          currentUserIdRef.current = parsed.id;
-          setAgent(parsed);
-          setUser({ id: parsed.id, email: 'demo@company.com' } as unknown as User);
-          setSession({ access_token: 'demo-token', user: { id: parsed.id } } as unknown as Session);
-        } catch {
-          // ignore
-        }
-      }
       setLoading(false);
       return;
     }
@@ -139,22 +124,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
 
     if (!isSupabaseConfigured) {
-      // If not configured, guide the user or allow instant preview demo
-      if (email.toLowerCase().includes('demo') || pass === 'demo') {
-        const demoAgent: Agent = {
-          id: 'agent-demo-01',
-          full_name: 'Agent Démo (Madagascar)',
-          team: 'mada_ops',
-          active: true,
-        };
-        sessionStorage.setItem('demo_agent', JSON.stringify(demoAgent));
-        setAgent(demoAgent);
-        setUser({ id: demoAgent.id, email } as unknown as User);
-        setSession({ access_token: 'demo-token', user: { id: demoAgent.id } } as unknown as Session);
-        return;
-      }
       throw new Error(
-        'Supabase non configuré : renseignez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY ou utilisez le mode démo.'
+        'Supabase n’est pas configuré. Renseignez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant de vous connecter.'
       );
     }
 
@@ -168,22 +139,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInDemo = () => {
-    const demoAgent: Agent = {
-      id: 'agent-demo-01',
-      full_name: 'Agent Démo (Madagascar)',
-      team: 'mada_ops',
-      active: true,
-    };
-    sessionStorage.setItem('demo_agent', JSON.stringify(demoAgent));
-    setAgent(demoAgent);
-    setUser({ id: demoAgent.id, email: 'demo@company.com' } as unknown as User);
-    setSession({ access_token: 'demo-token', user: { id: demoAgent.id } } as unknown as Session);
-  };
-
   const signOut = async () => {
     setError(null);
-    sessionStorage.removeItem('demo_agent');
     if (isSupabaseConfigured) {
       const { error: signOutError } = await supabase.auth.signOut();
       if (signOutError) {
@@ -206,7 +163,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isConfigured: isSupabaseConfigured,
         signIn,
         signOut,
-        signInDemo,
       }}
     >
       {children}

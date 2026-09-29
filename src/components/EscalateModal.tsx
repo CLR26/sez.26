@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Case, CaseTeam, Agent } from '../types/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { TEAM_LABELS } from '../utils/formatters';
@@ -19,10 +19,34 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
   currentAgent,
   onStatusUpdated,
 }) => {
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<CaseTeam | ''>(caseItem.assigned_team || '');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.querySelector<HTMLElement>('select, textarea, button:not(:disabled)')?.focus();
+    return () => returnFocusRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) { event.preventDefault(); event.stopPropagation(); onClose(); return; }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const items = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), textarea:not(:disabled), input:not(:disabled)'));
+      if (!items.length) return;
+      const first = items[0]; const last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, submitting, onClose]);
 
   if (!isOpen) return null;
 
@@ -36,27 +60,12 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
     setSubmitting(true);
     setError(null);
 
-    const nowIso = new Date().toISOString();
     const teamLabel = TEAM_LABELS[selectedTeam as CaseTeam];
     const eventBody = `Dossier escaladé à l'équipe ${teamLabel}.${
       reason.trim() ? ` Motif : ${reason.trim()}` : ''
     }`;
 
-    if (!isSupabaseConfigured) {
-      const updatedMock: Case = {
-        ...caseItem,
-        status: 'escalated',
-        assigned_team: selectedTeam as CaseTeam,
-        resolved_at: null,
-      };
-
-      setTimeout(() => {
-        setSubmitting(false);
-        onStatusUpdated(updatedMock);
-        onClose();
-      }, 200);
-      return;
-    }
+    if (!isSupabaseConfigured) { setError('Supabase n’est pas configuré. L’escalade n’a pas été enregistrée.'); setSubmitting(false); return; }
 
     try {
       // 1. Update case status & team in Supabase
@@ -65,7 +74,6 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
         .update({
           status: 'escalated',
           assigned_team: selectedTeam,
-          resolved_at: null,
         })
         .eq('id', caseItem.id)
         .select()
@@ -74,9 +82,10 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
       if (updateError) {
         throw updateError;
       }
+      onStatusUpdated(updatedData as Case);
 
       // 2. Add escalation event in journal
-      await supabase.from('case_events').insert([
+      const { error: eventError } = await supabase.from('case_events').insert([
         {
           case_id: caseItem.id,
           author_id: currentAgent.id,
@@ -85,8 +94,8 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
           body: eventBody,
         },
       ]);
+      if (eventError) throw eventError;
 
-      onStatusUpdated(updatedData as Case);
       onClose();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur lors de l'escalade du dossier";
@@ -114,6 +123,11 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
       }}
     >
       <div
+        ref={dialogRef}
+        className="modal-surface"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="escalate-dialog-title"
         style={{
           width: '100%',
           maxWidth: '480px',
@@ -153,7 +167,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
               <ArrowUpRight size={16} />
             </div>
             <div>
-              <h2 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              <h2 id="escalate-dialog-title" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
                 Escalader le dossier #{caseItem.id}
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -164,6 +178,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
 
           <button
             type="button"
+            aria-label="Fermer la fenêtre d’escalade"
             onClick={onClose}
             disabled={submitting}
             style={{
@@ -205,16 +220,21 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
             <label className="field-label" style={{ fontWeight: 600 }}>
               Équipe opérationnelle assignée <span style={{ color: '#ef4444' }}>* (Obligatoire)</span>
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div
+            <div role="group" aria-label="Équipe opérationnelle assignée" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button
+                type="button"
+                aria-pressed={selectedTeam === 'mada_ops'}
                 onClick={() => setSelectedTeam('mada_ops')}
                 style={{
+                  width: '100%',
                   padding: '12px',
                   borderRadius: 'var(--radius-sm)',
                   border: selectedTeam === 'mada_ops' ? '2px solid var(--teal-primary)' : '0.5px solid var(--border-color)',
                   background: selectedTeam === 'mada_ops' ? 'var(--teal-surface)' : 'var(--bg-surface)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  color: 'inherit',
+                  textAlign: 'left',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -226,17 +246,22 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Code : <code>mada_ops</code>
                 </div>
-              </div>
+              </button>
 
-              <div
+              <button
+                type="button"
+                aria-pressed={selectedTeam === 'sez_ops'}
                 onClick={() => setSelectedTeam('sez_ops')}
                 style={{
+                  width: '100%',
                   padding: '12px',
                   borderRadius: 'var(--radius-sm)',
                   border: selectedTeam === 'sez_ops' ? '2px solid var(--teal-primary)' : '0.5px solid var(--border-color)',
                   background: selectedTeam === 'sez_ops' ? 'var(--teal-surface)' : 'var(--bg-surface)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                  color: 'inherit',
+                  textAlign: 'left',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -248,7 +273,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                   Code : <code>sez_ops</code>
                 </div>
-              </div>
+              </button>
             </div>
             {!selectedTeam && (
               <p style={{ fontSize: '11px', color: '#c2410c', marginTop: '4px' }}>
