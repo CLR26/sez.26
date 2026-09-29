@@ -1,85 +1,73 @@
-# SEZ.26 — Codex Repository Instructions
+# Suivi des dossiers — Instructions for Codex
 
-## Product role
+Internal web app where a small team of customer-service agents logs, tracks and escalates customer cases. Stack: React + TypeScript + Vite, Supabase (database and login), Cloudflare Pages (hosting). `main` deploys to production automatically.
 
-You are the senior product engineer for **Suivi des dossiers**, a customer-case management application for agents.
+## How to work with the owner
 
-Product intent: a fast, modern, intuitive work inbox inspired by the workflow principles of Help Scout, but implemented with the product's own business model and visual identity.
+The owner runs the business and has no coding background. They decide **what** the app must do; you decide **how**.
 
-Primary stack: React + TypeScript + Vite + Supabase. Deployment flow: Google AI Studio (App) -> GitHub -> Cloudflare Pages.
+- Make all technical decisions yourself (libraries, structure, naming, tests). Choose the most robust option after weighing alternatives.
+- Ask only business questions, one at a time, in plain language, with your recommended answer. Never ask the owner to run commands, edit files, read code or paste SQL.
+- Reports are in plain language, with no jargon. If a technical term is unavoidable, explain it in half a sentence. Format: what changed for users, what was checked, what the owner should test in the app (2 to 5 concrete steps), what is still pending. Do not list files unless asked.
+- Reply in the language the owner writes in. All text shown in the app is French.
+- Challenge requests that conflict with the business rules or that have a clearly better alternative. Say so before building.
 
-## Source of truth
+## Documentation map
 
-- The current workspace is the source of truth for code and local changes.
-- Preserve local work that has not yet been pushed to GitHub.
-- Do not reset, restore, clean, or overwrite unrelated changes.
-- Use `git status`, `git diff`, and `git diff --stat` before making meaningful edits.
-- `schema.sql` and database migrations are the source of truth for database invariants.
-- Historical summaries from Google AI Studio/Claude describe intent and prior decisions; do not blindly recreate work that is already present.
+Each fact lives in exactly one place. Link to it, never copy it.
 
-## Business invariants
+| File | Holds | Update when |
+|---|---|---|
+| `docs/product.md` | Business rules: statuses, teams, roles, case lifecycle, permissions, KPI definitions, constraints | A business rule changes |
+| `docs/architecture.md` | Stack, deployment, environment variables, data flow, database objects and invariants | Structure, stack or schema changes |
+| `docs/decisions.md` | Log of significant decisions with date, reason and rejected alternatives. Append only: supersede, never rewrite | A lasting decision is made |
+| `docs/roadmap.md` | Current phase, backlog, known issues | Every work session |
+| `docs/qa-checklist.md` | Manual test path of the main workflows | A feature is added or changed |
 
-Channels: `whatsapp`, `email`.
+The code and the live database are the truth for what exists. The docs are the truth for intent. If they disagree, tell the owner. Do not silently pick one.
 
-Statuses: `new`, `in_progress`, `escalated`, `resolved`.
+## Every task
 
-Categories: `customs`, `delivery`, `billing`, `account`, `other`.
+1. Read the docs relevant to the task and check `git status` before editing.
+2. Work on a branch (`feature/<topic>` or `fix/<topic>`). Make small, coherent changes. No broad rewrites.
+3. Validate for real: `npm run lint`, `npm test`, `npm run build`. For UI changes, run the affected path of `docs/qa-checklist.md` in a browser when tooling is available. Report exact results. Never claim a check passed that you did not run.
+4. Update the docs in the same change whenever a rule, structure, schema object or decision changes. Add QA steps for new features.
+5. Commit with clear, imperative messages.
+6. Merge to `main` only when all checks pass, any required database migration is already applied and verified, and nothing under "Ask first" is pending. Then confirm the deployment succeeded, or tell the owner what to look at.
+7. If a merged change breaks production, revert first, diagnose after, and tell the owner.
 
-Teams: `mada_ops`, `sez_ops`.
+You own git. Never force-push, rewrite the history of `main`, or delete a branch that holds unmerged work. Never commit secrets (`.env*`).
 
-- `owner_id` is immutable.
-- `resolved_at` is controlled by PostgreSQL; do not reintroduce client-side resolution timestamps.
-- Case journal kinds are `note`, `customer_update`, `escalation`, `status_change`.
-- Supabase Auth + RLS are mandatory security boundaries.
-- Archiving is soft-delete (`deleted_at`, `deleted_by`), not physical deletion.
-- Archived cases must not pollute active views or KPI reporting.
-- KPI reporting uses the backend RPC `kpi_report(period_days)` when available.
-- Never add fake/demo data to conceal backend or configuration problems.
+## Ask first
 
-## Engineering policy
+Stop and ask the owner, in plain words (what could be lost or blocked, and your recommendation), before:
 
-Preserve business semantics while freely improving frontend architecture, accessibility, performance, interaction design, navigation, and visual hierarchy.
+- changing a business rule (statuses, teams, ownership, KPI definitions, who sees what);
+- any database change that deletes or rewrites existing data, drops or renames an existing object, changes login or access rules (RLS, policies, grants), or could stop agents from working;
+- removing a feature or data that users can see;
+- adding anything that costs money (paid plan, paid service, paid feature). The project must stay free.
 
-Prefer small, coherent changes over broad rewrites. Do not introduce dependencies unless they solve a real problem.
+Allowed without asking: read-only inspection, and additive database changes (new table, column, index, function, trigger) that have a rollback plan and are verified after being applied.
 
-When behavior is ambiguous, inspect existing types, queries, SQL, and UI before inventing a new rule.
+## Database and security
 
-Every user-visible action should have deterministic success/error feedback. Do not silently swallow Supabase errors.
+- The live database and `supabase/` are the truth for the data model. Every schema change is a timestamped migration file in `supabase/migrations/`, additive whenever possible, with rollback steps in its header. If `supabase/baseline.sql` is missing, create it first from the live database (read-only).
+- Row Level Security stays enabled on every table. Never bypass it from the browser. Never use a service-role key in front-end code. Only the public URL and anon key exist in the browser.
+- Secondary features (notifications, logs) must never block a user action. Wrap their database logic so a failure raises a warning, not an error.
+- No fake or demo data, and no fallback that hides a real error. Show real error states.
+- Prefer read-only checks on live data. If a write test is unavoidable, ask first, label the data `TEST`, and report exactly what was created.
+- Never print, log or commit secrets or customer data (names, contacts) in reports, screenshots, tests or commits. Test accounts are supplied by the owner at runtime.
 
-Avoid full-page reloads for normal agent actions. Preserve selected case, search context, and drafts across silent refreshes where the existing architecture supports them.
+## Engineering standards
 
-## UX direction
+- Preserve business meaning. Freely improve structure, performance, accessibility and design.
+- Every user action gets visible success or error feedback. Never swallow an error.
+- No full-page reload for normal actions. Keep selection, search and drafts across refreshes. Update only what changed instead of reloading everything.
+- Business logic lives in `src/lib` with unit tests. A bug fix comes with a test when practical.
+- When touching a file over about 500 lines, extract what you touch into a smaller component instead of growing it.
+- Add a dependency only if it solves a real problem, and record it in `docs/decisions.md` if the choice is lasting.
+- Design: calm, modern work inbox (views, case list, selected case, quick actions, journal, next and previous case). Use color only to convey meaning. Laptop first, usable on narrower screens. Help Scout is a reference for workflow only. Do not copy its interface or labels.
 
-Think in terms of an agent work inbox:
+## Keeping this file healthy
 
-sidebar/views -> case list -> selected case -> quick actions -> journal -> next/previous case.
-
-Prefer work-oriented views such as `Mes dossiers`, `Tous`, `Escaladés`, and `Résolus` over technical filter-heavy UI.
-
-The UI should feel like a mature SaaS product: clear hierarchy, restrained controls, deliberate status colors, excellent empty/loading/error states, keyboard-friendly navigation, and responsive desktop-first behavior.
-
-Use Help Scout only as a UX/process reference. Do not copy proprietary UI, labels, status values, or information architecture where they conflict with this product.
-
-## Validation
-
-For non-trivial changes:
-
-1. implement coherently;
-2. run the project's real build/typecheck/lint commands;
-3. test the affected workflow;
-4. inspect the final diff for regressions;
-5. report exact validation results.
-
-Do not claim a test passed unless it was actually run.
-
-## Browser testing
-
-For UI changes, prefer the repository's local browser test setup (Playwright or equivalent) when available. Test the most important agent workflows against a running build.
-
-For deployed-site checks, use the connected browser workflow when available. Never expose credentials in source files, screenshots, commit messages, or logs.
-
-## Git policy
-
-Do not commit or push unless the user explicitly asks for it in the current task.
-
-When a task is complete, leave the workspace ready for review and provide the exact modified-file summary and validation results.
+Keep it short and stable: no task lists, no status, no business facts (those belong in `docs/`). If a rule stops being true, fix it in the same task. Lasting instructions from the owner go into the matching doc.
