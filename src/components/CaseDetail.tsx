@@ -1101,9 +1101,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
       )}
 
       {selectedCase && isDeleteDialogOpen && (
-        <div className="delete-dialog-backdrop">
+        <div className="app-dialog-backdrop delete-dialog-backdrop">
           <section
-            className="delete-dialog"
+            className="app-dialog delete-dialog"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-case-title"
@@ -1115,17 +1115,26 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
               }
             }}
           >
-            <div className="delete-dialog-icon"><Trash2 size={19} /></div>
-            <h2 id="delete-case-title">Supprimer le dossier #{selectedCase.id} ?</h2>
-            <p id="delete-case-description">Contrairement à l’archivage, ce dossier ne pourra pas être restauré. Il sera retiré des vues, de la recherche et des indicateurs ; son historique restera conservé.</p>
-            {deleteError && <div role="alert" className="notice-box">{deleteError}</div>}
-            <div className="delete-dialog-actions">
-              <button type="button" className="button-secondary" autoFocus disabled={isDeletingCase} onClick={() => setIsDeleteDialogOpen(false)}>Annuler</button>
+            <header className="app-dialog-header">
+              <div className="app-dialog-heading">
+                <span className="app-dialog-icon delete-dialog-icon"><Trash2 size={17} /></span>
+                <div>
+                  <span className="app-dialog-eyebrow">SUPPRESSION DÉFINITIVE</span>
+                  <h2 id="delete-case-title">Supprimer le dossier #{selectedCase.id} ?</h2>
+                </div>
+              </div>
+            </header>
+            <div className="delete-dialog-content">
+              <p id="delete-case-description">Ce dossier sera retiré de l’espace agent et des rapports. Il ne pourra pas être restauré, mais son historique restera conservé.</p>
+              {deleteError && <div role="alert" className="app-dialog-error">{deleteError}</div>}
+            </div>
+            <footer className="app-dialog-actions">
+              <button type="button" className="button-secondary dialog-secondary-button" autoFocus disabled={isDeletingCase} onClick={() => setIsDeleteDialogOpen(false)}>Annuler</button>
               <button type="button" className="button-danger" disabled={isDeletingCase} onClick={() => void handleDeleteCase()}>
                 {isDeletingCase ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                 Supprimer le dossier
               </button>
-            </div>
+            </footer>
           </section>
         </div>
       )}

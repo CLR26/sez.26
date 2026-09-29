@@ -107,185 +107,85 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 50,
-        backgroundColor: 'rgba(0, 0, 0, 0.45)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        backdropFilter: 'blur(2px)',
-      }}
+      className="app-dialog-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !submitting) onClose();
       }}
     >
       <div
         ref={dialogRef}
-        className="modal-surface"
+        className="modal-surface app-dialog escalate-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="escalate-dialog-title"
-        style={{
-          width: '100%',
-          maxWidth: '480px',
-          background: 'var(--bg-surface)',
-          border: '0.5px solid var(--border-color)',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
+        aria-describedby="escalate-dialog-description"
       >
-        {/* Header */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '0.5px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '6px',
-                background: 'var(--warning-bg)',
-                border: '0.5px solid var(--warning-border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--warning-text)',
-              }}
-            >
-              <ArrowUpRight size={16} />
-            </div>
+        <header className="app-dialog-header">
+          <div className="app-dialog-heading">
+            <span className="app-dialog-icon escalation-dialog-icon"><ArrowUpRight size={17} /></span>
             <div>
-              <h2 id="escalate-dialog-title" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Escalader le dossier #{caseItem.id}
-              </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Sélection obligatoire de l'équipe opérationnelle
-              </p>
+              <span className="app-dialog-eyebrow">ESCALADE</span>
+              <h2 id="escalate-dialog-title">Escalader le dossier #{caseItem.id}</h2>
+              <p id="escalate-dialog-description">Choisissez l’équipe opérationnelle qui prendra le relais.</p>
             </div>
           </div>
-
           <button
             type="button"
             aria-label="Fermer la fenêtre d’escalade"
             onClick={onClose}
             disabled={submitting}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              padding: '4px',
-              borderRadius: '4px',
-            }}
+            className="app-dialog-close"
           >
             <X size={18} />
           </button>
-        </div>
+        </header>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} className="app-dialog-form">
           {error && (
-            <div
-              style={{
-                padding: '10px 12px',
-                background: 'var(--danger-bg)',
-                border: '0.5px solid var(--danger-border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--danger-text)',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <AlertCircle size={15} style={{ flexShrink: 0 }} />
+            <div role="alert" className="app-dialog-error">
+              <AlertCircle size={15} />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Team Selection (MANDATORY) */}
           <div className="field-group">
-            <label className="field-label" style={{ fontWeight: 600 }}>
-              Équipe opérationnelle assignée <span style={{ color: 'var(--danger-text)' }}>* (Obligatoire)</span>
-            </label>
-            <div role="group" aria-label="Équipe opérationnelle assignée" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="dialog-section-heading">
+              <span className="field-label">Équipe opérationnelle</span>
+              <span className="required-indicator">Obligatoire</span>
+            </div>
+            <div role="group" aria-label="Équipe opérationnelle assignée" className="team-choice-grid">
               <button
                 type="button"
+                className={`team-choice${selectedTeam === 'mada_ops' ? ' selected' : ''}`}
                 aria-pressed={selectedTeam === 'mada_ops'}
                 onClick={() => setSelectedTeam('mada_ops')}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: selectedTeam === 'mada_ops' ? '2px solid var(--teal-primary)' : '0.5px solid var(--border-color)',
-                  background: selectedTeam === 'mada_ops' ? 'var(--teal-surface)' : 'var(--bg-surface)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  color: 'inherit',
-                  textAlign: 'left',
-                }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <Users size={14} style={{ color: 'var(--teal-primary)' }} />
-                  <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
-                    Ops Madagascar
-                  </span>
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Code : <code>mada_ops</code>
-                </div>
+                <span className="team-choice-icon"><Users size={16} /></span>
+                <span className="team-choice-label">Ops Madagascar</span>
+                <span className="team-choice-indicator" aria-hidden="true" />
               </button>
 
               <button
                 type="button"
+                className={`team-choice${selectedTeam === 'sez_ops' ? ' selected' : ''}`}
                 aria-pressed={selectedTeam === 'sez_ops'}
                 onClick={() => setSelectedTeam('sez_ops')}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: selectedTeam === 'sez_ops' ? '2px solid var(--teal-primary)' : '0.5px solid var(--border-color)',
-                  background: selectedTeam === 'sez_ops' ? 'var(--teal-surface)' : 'var(--bg-surface)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  color: 'inherit',
-                  textAlign: 'left',
-                }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <Users size={14} style={{ color: 'var(--teal-primary)' }} />
-                  <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)' }}>
-                    Ops Seychelles
-                  </span>
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  Code : <code>sez_ops</code>
-                </div>
+                <span className="team-choice-icon"><Users size={16} /></span>
+                <span className="team-choice-label">Ops Seychelles</span>
+                <span className="team-choice-indicator" aria-hidden="true" />
               </button>
             </div>
             {!selectedTeam && (
-              <p style={{ fontSize: '11px', color: 'var(--warning-text)', marginTop: '4px' }}>
-                Veuillez sélectionner l'une des deux équipes pour autoriser l'escalade.
+              <p className="field-help">
+                Sélectionnez une équipe pour activer l’escalade.
               </p>
             )}
           </div>
 
-          {/* Reason / Note */}
           <div className="field-group">
-            <label htmlFor="escalate-reason" className="field-label">
-              Motif de l'escalade ou instructions pour l'équipe (journalisé)
+            <label htmlFor="escalate-reason" className="field-label dialog-field-label">
+              Motif ou consigne <span className="optional-indicator">Facultatif · ajouté au journal</span>
             </label>
             <textarea
               id="escalate-reason"
@@ -294,34 +194,15 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
               onChange={(e) => setReason(e.target.value)}
               disabled={submitting}
               className="text-input"
-              style={{ resize: 'vertical' }}
             />
           </div>
 
-          {/* Modal Actions */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              paddingTop: '12px',
-              borderTop: '0.5px solid var(--border-color)',
-            }}
-          >
+          <footer className="app-dialog-actions">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              style={{
-                padding: '8px 14px',
-                borderRadius: 'var(--radius-sm)',
-                border: '0.5px solid var(--border-color)',
-                background: 'var(--bg-surface)',
-                color: 'var(--text-secondary)',
-                fontSize: '13px',
-                cursor: submitting ? 'not-allowed' : 'pointer',
-              }}
+              className="button-secondary dialog-secondary-button"
             >
               Annuler
             </button>
@@ -329,20 +210,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
             <button
               type="submit"
               disabled={submitting || !selectedTeam}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                backgroundColor: !selectedTeam ? 'var(--bg-subtle)' : 'var(--warning-action)',
-                color: !selectedTeam ? 'var(--text-muted)' : '#ffffff',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: !selectedTeam || submitting ? 'not-allowed' : 'pointer',
-                transition: 'background 0.15s ease',
-              }}
+              className="button-escalate"
             >
               {submitting ? (
                 <>
@@ -356,7 +224,7 @@ export const EscalateModal: React.FC<EscalateModalProps> = ({
                 </>
               )}
             </button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
