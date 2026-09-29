@@ -366,7 +366,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
       >
         <div className="case-detail-toolbar">
           <div className="case-navigation"><button className="mobile-back-button" onClick={onBackToList}><ArrowLeft size={15} /> Dossiers</button><button className="icon-button" aria-label="Dossier précédent (K)" title="Précédent · K" disabled={!canNavigatePrevious} onClick={() => onNavigate(-1)}><ChevronLeft size={17} /></button><button className="icon-button" aria-label="Dossier suivant (J)" title="Suivant · J" disabled={!canNavigateNext} onClick={() => onNavigate(1)}><ChevronRight size={17} /></button><span>#{selectedCase.id}</span></div>
-          <button className="button-secondary" onClick={() => void handleArchive()} disabled={archiveBusy}>{selectedCase.deleted_at ? <ArchiveRestore size={15} /> : <Archive size={15} />}{selectedCase.deleted_at ? 'Restaurer' : 'Archiver'}</button>
+          <div className="case-detail-actions">
+            <button className="button-secondary" onClick={() => void handleArchive()} disabled={archiveBusy}>{selectedCase.deleted_at ? <ArchiveRestore size={15} /> : <Archive size={15} />}{selectedCase.deleted_at ? 'Restaurer' : 'Archiver'}</button>
+            {!selectedCase.permanently_deleted_at && <><span className="case-action-divider" aria-hidden="true" /><button type="button" className="button-danger-quiet" aria-label="Supprimer le dossier" title="Retirer définitivement des vues et rapports (historique conservé)" onClick={() => { setDeleteError(null); setIsDeleteDialogOpen(true); }}><Trash2 size={14} />Supprimer</button></>}
+          </div>
         </div>
         {archiveMessage && <div role="status" className="success-message">{archiveMessage}</div>}
         {/* Badges & ID row */}
@@ -586,16 +589,6 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           </div>
         </div>
       </div>
-
-      <section className="case-destructive-area" aria-label="Actions de conservation">
-        <div>
-          <strong>Actions de conservation</strong>
-          <p>La suppression retire ce dossier des vues et des rapports. Son historique est conservé.</p>
-        </div>
-        <button type="button" className="button-danger-quiet" onClick={() => { setDeleteError(null); setIsDeleteDialogOpen(true); }}>
-          <Trash2 size={15} /> Supprimer le dossier
-        </button>
-      </section>
 
       {/* Events / Timeline Card */}
       <div
@@ -1124,7 +1117,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
           >
             <div className="delete-dialog-icon"><Trash2 size={19} /></div>
             <h2 id="delete-case-title">Supprimer le dossier #{selectedCase.id} ?</h2>
-            <p id="delete-case-description">Il disparaîtra des vues, de la recherche et des indicateurs. L’historique du dossier sera conservé et cette action ne pourra pas être annulée.</p>
+            <p id="delete-case-description">Contrairement à l’archivage, ce dossier ne pourra pas être restauré. Il sera retiré des vues, de la recherche et des indicateurs ; son historique restera conservé.</p>
             {deleteError && <div role="alert" className="notice-box">{deleteError}</div>}
             <div className="delete-dialog-actions">
               <button type="button" className="button-secondary" autoFocus disabled={isDeletingCase} onClick={() => setIsDeleteDialogOpen(false)}>Annuler</button>
