@@ -1,6 +1,0 @@
-{
-  "name": "Suivi des dossiers",
-  "description": "Application de gestion et suivi des dossiers clients pour agents avec authentification Supabase.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
