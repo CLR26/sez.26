@@ -1,3 +1,5 @@
+-- Reference schema snapshot compared read-only with the live database on 2026-09-30; not restore-tested.
+-- No production writes were made as part of this comparison.
 -- Baseline schema-only derived from read-only inspection of Supabase project SEZ26 (PostgreSQL 17).
 -- No application data, auth users, or customer records are included.
 -- Recreate in a fresh Supabase project after enabling Supabase platform schemas/extensions.

@@ -2,17 +2,20 @@
 
 ## Phase actuelle — Audit et amélioration
 
-Aligner la documentation et le dépôt sur le fonctionnement observé. La baseline doit permettre de recréer le schéma live sans données.
+Aligner les documents, vérifier la baseline, stabiliser le déploiement continu et améliorer la structure produit sans écriture dans la base live.
 
 ## À venir
 
-- Centre de notifications : règles acceptées dans [decisions.md](decisions.md), conception en attente d’une confirmation pour le rappel Sez Ops.
-- Réconcilier l’équipe `cs` constatée sur les quatre agents live avec les deux équipes métier prévues au produit.
-- Rétablir la synchronisation formelle des migrations à partir de la baseline, après comparaison prudente avec le schéma live.
+- Centre de notifications selon [decisions.md](decisions.md), avec délai de rappel Sez Ops choisi à l’escalade.
+- Espace d’administration : définir un rôle administrateur; remplacer les listes fixes de catégories et canaux par des tables modifiables; prévoir une extension ultérieure aux agents, équipes et délais de rappel.
+- Restaurer et vérifier la baseline sur un projet jetable.
+- Vérifier si la base Supabase bénéficie de sauvegardes automatiques.
+- Réconcilier la valeur d’équipe `cs` avec le modèle métier, après confirmation.
 
 ## Problèmes connus
 
-- Supabase rapporte zéro migration enregistrée alors que la base contient les tables et objets applicatifs et le dépôt une migration de tombstone.
-- La valeur d’équipe `cs` en production n’est pas représentée dans les types du code.
+- Les quatre agents live sont enregistrés dans l’équipe `cs`, alors que l’application n’attend que `mada_ops` ou `sez_ops`; le type TypeScript `CaseTeam` ne permet pas `cs`.
+- Supabase rapporte zéro migration enregistrée bien que la base contienne les objets applicatifs. L’ancien script a été rangé dans `supabase/history/` et ne doit jamais être rejoué.
 - La publication Realtime n’inclut aucune table actuellement.
+- La baseline est un snapshot de référence non restauré; ses écarts résiduels sont détaillés dans [architecture.md](architecture.md).
 - Les parcours nécessitant un compte de test n’ont pas été validés dans un navigateur pendant cet audit.

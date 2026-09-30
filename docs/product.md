@@ -32,3 +32,5 @@ La connexion utilise Supabase Auth. Seuls les agents actifs authentifiés peuven
 ## Contraintes
 
 Le service doit rester gratuit. La progression de Sez Ops, WhatsApp et e-mail n’est pas synchronisée automatiquement avec des services tiers.
+
+Les catégories et les canaux doivent pouvoir être modifiés par un administrateur sans changement de code. Les valeurs actuelles décrivent les options disponibles aujourd’hui; la liste de référence devra être administrable.

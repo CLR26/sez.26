@@ -30,10 +30,10 @@ The code and the live database are the truth for what exists. The docs are the t
 
 1. Read the docs relevant to the task and check `git status` before editing.
 2. Work on a branch (`feature/<topic>` or `fix/<topic>`). Make small, coherent changes. No broad rewrites.
-3. Validate for real: `npm run lint`, `npm test`, `npm run build`. For UI changes, run the affected path of `docs/qa-checklist.md` in a browser when tooling is available. Report exact results. Never claim a check passed that you did not run.
+3. Validate for real: `npm run lint`, `npm test`, `npm run build` may run locally or in the GitHub Actions workflow. For UI changes, run the affected path of `docs/qa-checklist.md` in a browser when tooling is available. Report exact results. Never claim a check passed that you did not run.
 4. Update the docs in the same change whenever a rule, structure, schema object or decision changes. Add QA steps for new features.
 5. Commit with clear, imperative messages.
-6. Merge to `main` only when all checks pass, any required database migration is already applied and verified, and nothing under "Ask first" is pending. Then confirm the deployment succeeded, or tell the owner what to look at.
+6. Merge a branch to `main` only when the required checks are green, any required database migration is already applied and verified, and nothing under "Ask first" is pending. Then confirm the deployment succeeded, or tell the owner what to look at.
 7. If a merged change breaks production, revert first, diagnose after, and tell the owner.
 
 You own git. Never force-push, rewrite the history of `main`, or delete a branch that holds unmerged work. Never commit secrets (`.env*`).
@@ -51,12 +51,12 @@ Allowed without asking: read-only inspection, and additive database changes (new
 
 ## Database and security
 
-- The live database and `supabase/` are the truth for the data model. Every schema change is a timestamped migration file in `supabase/migrations/`, additive whenever possible, with rollback steps in its header. If `supabase/baseline.sql` is missing, create it first from the live database (read-only).
+- The live database and `supabase/` are the truth for the data model. `supabase/baseline.sql` is a read-only reference snapshot until restore-tested. Files in `supabase/history/` are already applied to live and must never be re-run. New schema changes go in timestamped files under `supabase/migrations/`, additive whenever possible, with rollback steps in the header.
 - Row Level Security stays enabled on every table. Never bypass it from the browser. Never use a service-role key in front-end code. Only the public URL and anon key exist in the browser.
 - Secondary features (notifications, logs) must never block a user action. Wrap their database logic so a failure raises a warning, not an error.
 - No fake or demo data, and no fallback that hides a real error. Show real error states.
 - Prefer read-only checks on live data. If a write test is unavoidable, ask first, label the data `TEST`, and report exactly what was created.
-- Never print, log or commit secrets or customer data (names, contacts) in reports, screenshots, tests or commits. Test accounts are supplied by the owner at runtime.
+- Never print, log or commit secrets or customer data (names, contacts) in reports, screenshots, tests or commits.
 
 ## Engineering standards
 
@@ -71,3 +71,5 @@ Allowed without asking: read-only inspection, and additive database changes (new
 ## Keeping this file healthy
 
 Keep it short and stable: no task lists, no status, no business facts (those belong in `docs/`). If a rule stops being true, fix it in the same task. Lasting instructions from the owner go into the matching doc.
+
+- If a network call fails, try one alternative route, then stop and report. Never retry blocked installs.
