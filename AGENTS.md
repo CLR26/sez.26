@@ -73,3 +73,5 @@ Allowed without asking: read-only inspection, and additive database changes (new
 Keep it short and stable: no task lists, no status, no business facts (those belong in `docs/`). If a rule stops being true, fix it in the same task. Lasting instructions from the owner go into the matching doc.
 
 - If a network call fails, try one alternative route, then stop and report. Never retry blocked installs.
+
+- When Git HTTPS push is unavailable, publish branch changes through the GitHub integration's Git tree and commit route.
